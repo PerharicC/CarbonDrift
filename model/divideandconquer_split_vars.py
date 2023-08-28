@@ -65,7 +65,7 @@ class DivideAndConquerCarbonDrift:
             self.o.add_reader(self.reader)
 
         self.configure()
-        self.o.seed_elements(lon = lon, lat = lat, z = -100, time = self.time, mass = kwargs["mass"], number = len(kwargs["mass"]))
+        self.o.seed_elements(lon = lon, lat = lat, z = 0, time = self.time, mass = kwargs["mass"], number = len(kwargs["mass"]))
 
     def economic_run(self, **kwargs):
 
