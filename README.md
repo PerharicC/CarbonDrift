@@ -114,3 +114,24 @@ For some plots, properties at two specific locations are plotted for comparison.
 ```python
 locations = [(x1, y1), (x2, y2)]
 ```
+
+We can now initialise our plotting object and import the lon & lat grid we saved in rectangele_seed()
+
+```python
+fig_size = (10, 10)
+p = Plot(clim_data, fig_size = figsize, locations = locations)
+
+lons = np.loadtxt("path_to_lons_in_grid")
+lats = np.loadtxt("path_to_lats_in_grid")
+```
+
+Now we are ready to plot different figures. Examples are shown bellow.
+
+### Plot the area of where the elements were initially seeded
+
+To plot the area of the grid where the elements were initially seeded, together with the two marked locations, we call the method
+
+```python
+p.area(lo nds, lats)
+```
+
