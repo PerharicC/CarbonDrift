@@ -48,7 +48,7 @@ time = datetime(year = year, month = motnh, day = day, hour = hour)
 Next we must define the lon & lat values for seeding the elements. This can be easily achieved with two simple 1D numpy arrays. For a grid seeding, however, one should write the following code
 
 ```python
-#Get a meshgrid array for lons and lats corresponding to the grid of thee given netCDF fie.
+#Get a meshgrid array for lons and lats corresponding to the grid of the given netCDF fie.
 #Num is the number of cells, i.e. num = lons.shape[0] * lons.shape[1]
 lons, lats, num = rectangle_seed(temperature_file)
 #Mask out cells which are on land, by filling them with nans.
@@ -66,4 +66,51 @@ Next we make a dictionary of configures to be set and a list of all readers to b
 ```python
 configure = {'drift:advection_scheme':"runge-kutta",
              'general:use_auto_landmask': False}
-readers = 
+readers = [bat, tmp, reader_landmask]
+```
+
+We can now finally initialise our GridRun object
+
+```python
+loglevel = 0 #Minimal information display in terminal.
+
+split_factor = 1#Number of seperate simulations.
+#If 1, no splitting will occur and the run will be equivalent
+#to simply using the carbondrift.CarbonDrift module directly.
+
+decay_type = "linear" #Or exponentital.
+
+o = GridRun(loglevel = loglevel, initial_velocity = -0.01, decay_type = decay_type,
+            deactivate_fragmentation = True, starttime = time, reader = readers,
+            configure = configure, split_factor = split_factor, lon = lons, lat = lats)
+```
+Finally we run the simulation by calling the run method.
+
+```python
+simulation_steps = 200
+minutes = 30
+time_step = timedelta(minutes = minutes)
+o.run(steps = simulation_steps, time_step = time_step, outfile = outfile)
+```
+
+## Plotting a simulation
+Now that we have successfully ran and saved a simulation to a netCDF file, we can look at how to plot the results. We do this through the Plot object in plots_cleaned. We begin again with importing all the necessary libraries.
+
+```python
+import numpy as np
+from plots_cleaned import Plot
+```
+
+Most of the methods in Plot are written for comparing two different netCDF files, for example a simulation of carbon decay using the climatology data
+and a simulation using data from a marine heatwave. We thus define the two file location paths.
+
+```python
+clim_data = "path_to_climatology_simulation_netCDF_file"
+mhw_file = "path_to_marine_heatwave_simulation_netCDF_file"
+```
+
+For some plots, properties at two specific locations are plotted for comparison. Therefore we must define the coordinates of the the locations as a list of tuples.
+
+```python
+locations = [(x1, y1), (x2, y2)]
+```
