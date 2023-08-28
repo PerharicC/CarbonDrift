@@ -93,7 +93,7 @@ class CarbonDrift(OceanDrift):
         self.w0 = kwargs.pop("initial_velocity", -0.01)
         m0 = kwargs.pop("mass", None)
         depth_norm = kwargs.pop("depth_norm", 1000)
-        distribution = kwargs.pop("distribution", None)
+        distribution = kwargs.pop("distribution", "mass_sqrt")
         plot_dist = kwargs.pop("plot_distribution", False)
         self.max_ram = kwargs.pop("max_ram", None)
         self.max_num = kwargs.pop("max_num", None)
