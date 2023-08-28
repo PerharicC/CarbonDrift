@@ -132,6 +132,46 @@ Now we are ready to plot different figures. Examples are shown bellow.
 To plot the area of the grid where the elements were initially seeded, together with the two marked locations, we call the method
 
 ```python
-p.area(lo nds, lats)
+p.area(lons, lats)
 ```
+
+![](/images/fig1_loc2.png)
+
+
+### Plot the z to fraction of mass dependance
+
+To plot $z(\Delta m/m_0)$ at the two specified locations, we call the method
+
+```python
+p.mass_z(mhw_file)
+```
+
+![](/images/fig3_dm_m0_exp_loc2.png)
+
+
+### Plot the z to time dependance
+
+To plot $z(t)$ at the two specified locations, we call the method
+
+```python
+p.time_z(mhw_file)
+```
+
+![](/images/fig4_exp_loc2.png)
+
+
+### Plot the fraction of mass, which crossed a certain sea depth
+
+To plot the fraction of mass, which had crossed the euphotic and twilight zones or had reached the sea floor we call the method
+
+```python
+p.mass_map(lons, lats, mhw_file, write_file = "some_text.txt")
+```
+
+We use the *write_file* argument to store the calculations into a .txt file. The next time we run the code we simply change the argument *write_file*&rarr;*read_file*.
+
+Example of an output can be found [here](/images/fig5_dm_m0_exp.pdf)
+
+
+
 
