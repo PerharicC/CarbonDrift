@@ -3,9 +3,13 @@ from numpy.random import random
 import scipy
 from opendrift.models.oceandrift import OceanDrift, Lagrangian3DArray
 from datetime import datetime, timedelta
-import logging
-logging.captureWarnings(True)
-logger = logging.getLogger(__name__)
+# import logging
+# logging.captureWarnings(True)
+# logger = logging.getLogger(__name__)
+from model.logger import Logger
+
+log = Logger("CarbonDrift.scripts.prepare_run")
+logger = log.LOGGER
 import opendrift
 import geojson
 
@@ -467,7 +471,8 @@ class CarbonDrift(OceanDrift):
             self.export_buffer_length = self.expected_steps_output
         else:
             self.export_buffer_length = export_buffer_length
-
+        if steps > 98:
+            self.export_buffer_length = steps + 2
         if self.time_step.days < 0:
             # For backwards simulation, we start at last seeded element
             logger.info('Backwards simulation, starting at '
