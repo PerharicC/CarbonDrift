@@ -1,1 +1,1 @@
-__add__ = ["carbondrift", "divideandconquer", "decaydistributions",  "carbondriftopen", "plots"]
+__add__ = ["carbondrift", "divideandconquer", "decaydistributions",  "carbondriftopen", "plots", "logger", "gridrun"]

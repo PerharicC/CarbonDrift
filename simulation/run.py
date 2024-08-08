@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import argparse
 
-from scripts.prepare_run import PrepareSimulation
+from simulation.prepare_run import PrepareSimulation
 
 from model.logger import Logger
 

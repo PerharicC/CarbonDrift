@@ -1,10 +1,10 @@
 import numpy as np
 from model.runbysubgrids_split_vars import GridRun
 from model.carbondrift import *
-from scripts.param_classifier import Parameters
+from simulation.param_classifier import Parameters
 from opendrift.readers import reader_global_landmask
 from opendrift.readers import reader_netCDF_CF_generic
-from scripts.seeding import *
+from simulation.seeding import *
 
 from model.logger import Logger
 
