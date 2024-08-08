@@ -10,8 +10,8 @@ import cartopy
 from cartopy import config
 import cartopy.crs as ccrs
 
-from carbondrift import *
-import carbondriftopen as cdo
+from model.carbondrift import *
+import model.carbondriftopen as cdo
 from netCDF4 import Dataset, num2date
 
 from numba import jit
@@ -73,12 +73,12 @@ class Plot:
 
     "Class for plotting saved .nc CarbonDrift simulations."
 
-    def __init__(self, filename, distribution, locations = None, fig_size = (20, 20), fontsize = 17):
+    def __init__(self, file1, distribution = "mass_sqrt", locations = None, fig_size = (20, 20), fontsize = 17):
 
         """
         Parameters
         ----------
-        filename: str
+        file1: str
             .nc file to be ploted
         distribution: str
             Name of distribution used in .nc file
@@ -87,9 +87,9 @@ class Plot:
         fontsize: int
             Fontsize (default: 20)"""
         
-        self.filename = filename
+        self.filename = file1
         # self.o = cdo.open(filename, distribution = distribution)
-        self.o = Open(filename)
+        self.o = Open(file1)
         self.time = self.o.get_time_array()
         self.distribution = distribution
 
@@ -582,7 +582,7 @@ class Plot:
         plt.ylabel(r"$\sum m(z = \mathrm{depth}) / m_0$")
         plt.show()
     
-    def mass_map(self, lons, lats, file2, pathtofile2 = None, read_file = None, write_file = None):
+    def mass_map(self, lons, lats, file2):
         """Plot the mass reached at depths [-200m, -1000m, sea_floor] over a cartopy map.
 
         Parameters
@@ -592,32 +592,18 @@ class Plot:
         lats: 1D ndarray
             Latitude values for grid.
         file2: Name of file for comparison.
-        pathotofile2: str
-            Path to file2 (default None is same as original file)
-        read_file: str
-            Name of file with saved values, to avoid recalculating. Should be the same as the name used with write_file.
-        write_file: str
-            Name of file to store values.
         """
 
         plt.close()
 
-        if read_file is None:
-            if pathtofile2 is not None:
-                import os
-                curdir = os.getcwd()
-                os.chdir(pathtofile2)
-                o2 = Plot(file2, self.distribution)
-                os.chdir(curdir)
-            else:
-                o2 = Plot(file2, self.distribution)
-            plt.close()
+        o2 = Plot(file2, self.distribution)
+        plt.close()
         
         fig, axes = plt.subplots(3, 3, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
         
         cmaps = ["Reds", "Blues", "Greens"]
         cmap_diffs = mpl.cm.RdBu_r
-        subfig_titles = ["climatology", "2003", "difference"]
+        subfig_titles = ["climatology", "MHW", "difference"]
 
         #linear
         # vmin = [0.73, 0.25, 0.0]
@@ -634,8 +620,8 @@ class Plot:
         # cbar_ticks = [[-0.01, 0, 0.01, 0.02], [-0.01, 0.00, 0.01], [-0.01, 0, 0.01, 0.02]]
 
         #exp
-        vmin = [0.6, 0.18, 0.0]
-        vmax = [0.8, 0.3, 0.03]
+        # vmin = [0.6, 0.18, 0.0]
+        # vmax = [0.8, 0.3, 0.03]
         
         #exp_dm/m
         # vmin_diff = [-0.08, -0.08, -0.08]
@@ -643,9 +629,9 @@ class Plot:
         # cbar_ticks = [[-0.05, 0, 0.05, 0.10], [-0.05, 0.0, 0.05, 0.10], [0, 0.1]]
 
         #exp dm/m0
-        vmin_diff = [-0.05, -0.015, -0.02]
-        vmax_diff = [0.1, 0.03, 0.04]
-        cbar_ticks = [[-0.05, 0, 0.05, 0.10], [0.0, 0.01, 0.02], [-0.02, 0, 0.02, 0.04]]
+        # vmin_diff = [-0.05, -0.015, -0.02]
+        # vmax_diff = [0.1, 0.03, 0.04]
+        # cbar_ticks = [[-0.05, 0, 0.05, 0.10], [0.0, 0.01, 0.02], [-0.02, 0, 0.02, 0.04]]
 
         plt.subplots_adjust(wspace=0, hspace=0.2)
 
@@ -665,46 +651,34 @@ class Plot:
         
         for i, zone in enumerate([-200, -1000, "sea floor"]):
             ax = axes[i, :]
-            if read_file is not None:
-                mass1 = np.loadtxt(str(zone).replace(" ", "") + "_clim_" + read_file)
-                mass2 = np.loadtxt(str(zone).replace(" ", "") + "_2003_" + read_file)
-                mass = np.loadtxt(str(zone).replace(" ", "") + "_diff_" + read_file)
-                # mass[mass > 0.8] = np.nan
-                mass = mass1 - mass2
-            else:
-                bad1 = self.clean_dataset()
-                bad2 = o2.clean_dataset()
-                mass1, m0 = self.zone_crossing_event(lons, lats, zone, bad1, bad2)
-                mass2, m02 = o2.zone_crossing_event(lons, lats, zone, bad1, bad2)
-                mass = (np.copy(mass1) - mass2) / np.copy(mass1)
+            bad1 = self.clean_dataset()
+            bad2 = o2.clean_dataset()
+            mass1, m0 = self.zone_crossing_event(lons, lats, zone, bad1, bad2)
+            mass2, m02 = o2.zone_crossing_event(lons, lats, zone, bad1, bad2)
+            mass = (np.copy(mass1) - mass2) / np.copy(mass1)
             
-            if write_file is not None:
-                np.savetxt(str(zone).replace(" ", "") + "_clim_" + write_file, mass1)
-                np.savetxt(str(zone).replace(" ", "") + "_2003_" + write_file, mass2)
-                np.savetxt(str(zone).replace(" ", "") + "_diff_" + write_file, mass)
-            
-            #Clip values of third column for better visualization.
-            m1, M1 = np.min(mass1[np.invert(np.isnan(mass1))]), np.max(mass1[np.invert(np.isnan(mass1))])
-            m2, M2 = np.min(mass2[np.invert(np.isnan(mass2))]), np.max(mass2[np.invert(np.isnan(mass2))])
-            mass = np.copy(mass)
-            row, col = np.where(mass < vmin_diff[i])
-            mass[row, col] = vmin_diff[i]
-            row, col = np.where(mass > vmax_diff[i])
-            mass[row, col] = vmax_diff[i]
+            # #Clip values of third column for better visualization.
+            # m1, M1 = np.min(mass1[np.invert(np.isnan(mass1))]), np.max(mass1[np.invert(np.isnan(mass1))])
+            # m2, M2 = np.min(mass2[np.invert(np.isnan(mass2))]), np.max(mass2[np.invert(np.isnan(mass2))])
+            # mass = np.copy(mass)
+            # row, col = np.where(mass < vmin_diff[i])
+            # mass[row, col] = vmin_diff[i]
+            # row, col = np.where(mass > vmax_diff[i])
+            # mass[row, col] = vmax_diff[i]
             m, mid, M = self.get_colormap_midpoint(mass)
-            Vmin, Vmax = min(m1, m2), max(M1, M2)
+            # Vmin, Vmax = min(m1, m2), max(M1, M2)
 
-            #Clip values of first two columns for better visualization. 
-            mass1 = np.copy(mass1)
-            mass2 = np.copy(mass2)
-            row, col = np.where(mass1 < vmin[i])
-            mass1[row, col] = vmin[i]
-            row, col = np.where(mass1 > vmax[i])
-            mass1[row, col] = vmax[i]
-            row, col = np.where(mass2 < vmin[i])
-            mass2[row, col] = vmin[i]
-            row, col = np.where(mass2 > vmax[i])
-            mass2[row, col] = vmax[i]
+            # #Clip values of first two columns for better visualization. 
+            # mass1 = np.copy(mass1)
+            # mass2 = np.copy(mass2)
+            # row, col = np.where(mass1 < vmin[i])
+            # mass1[row, col] = vmin[i]
+            # row, col = np.where(mass1 > vmax[i])
+            # mass1[row, col] = vmax[i]
+            # row, col = np.where(mass2 < vmin[i])
+            # mass2[row, col] = vmin[i]
+            # row, col = np.where(mass2 > vmax[i])
+            # mass2[row, col] = vmax[i]
             
             #Add coastlines.
             for j in range(3):
@@ -716,7 +690,7 @@ class Plot:
             #Plot.
             ax[0].contourf(lons, lats, mass1.T, 20, transform=ccrs.PlateCarree(), cmap = cmaps[i], zorder = 1,extend='both', extendfrac='auto')
             sm2 = ax[1].contourf(lons, lats, mass2.T, 20, transform=ccrs.PlateCarree(), cmap = cmaps[i], zorder = 1,extend='both', extendfrac='auto')
-            cmap = self.shiftedColorMap(cmap_diffs, midpoint = mid, name='shifted{}'.format(i))
+            cmap = cmap_diffs#self.shiftedColorMap(cmap_diffs, midpoint = mid, name='shifted{}'.format(i))
             sm = ax[2].contourf(lons, lats, mass.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
 
             #Create colorbars for first two columns.
@@ -729,9 +703,9 @@ class Plot:
             #Create colorbars for third column.
             cb = plt.colorbar(sm, cax = cb_ax2(ax[2], i), orientation="horizontal")
             cb.set_label(r"$\Delta m/m_0$")
-            cb.ax.set_xticks(cbar_ticks[i])
-            if i == 0:
-                cb.ax.set_xticklabels(["{:.2f}".format(round(j, 2)) for j in cb.get_ticks()])
+            # cb.ax.set_xticks(cbar_ticks[i])
+            # if i == 0:
+            #     cb.ax.set_xticklabels(["{:.2f}".format(round(j, 2)) for j in cb.get_ticks()])
         
         plt.savefig("tmp.pdf", dpi = 300, bbox_inches = "tight")
         # plt.show()
@@ -1094,108 +1068,6 @@ class Plot:
         dt = datetime.strptime(str(self.time[1]),'%Y-%m-%d %H:%M:%S') - datetime.strptime(str(self.time[0]),'%Y-%m-%d %H:%M:%S')
         dt = dt.total_seconds() / 3600
         return np.arange(0, n * dt, dt)
-    
-    def m_T_correlations(self, markevery = 1):
-        from matplotlib.patches import Ellipse
-        import matplotlib.transforms as transforms
-
-        z = self.o.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = self.o.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-        T = self.o.get_property("sea_water_temperature")
-        T = np.ma.filled(T, np.nan)
-        lon = self.o.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-        lat = self.o.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-        bad_trajectories = self.clean_dataset()
-
-        def mass_sum(depth, z, mass, lon, lat, T, bad = bad_trajectories):
-
-            def grad_calc(T, z, i, j = 0):
-                return (T[j] - T[i]) / (z[j] - z[i])
-            
-            mass_at_depth = []
-            T_surface = []
-            T_100 = []
-            T_200 = []
-            T_grad_100_200 = []
-            T_grad_100 = []
-            T_grad_200 = []
-
-            for i in range(mass.shape[1]):
-                if i in bad:
-                    bad.remove(i)
-                    continue
-                drifter_trajectory = z[:, i]
-                drifter_mass = mass[:, i]
-
-                trajectory_nans = np.invert(np.isnan(drifter_trajectory))
-
-                if np.min(drifter_trajectory[trajectory_nans])>depth:
-                    continue
-                
-                depth_idx = np.argmin(np.abs(drifter_trajectory[trajectory_nans] - depth))
-
-                idx_100 = np.argmin(np.abs(drifter_trajectory[trajectory_nans] + 15))
-
-                if np.isnan(drifter_mass[depth_idx]) or drifter_mass[depth_idx] == 1:
-                    continue
-
-                drifter_lon = lon[depth_idx, i]
-                drifter_lat = lat[depth_idx, i]
-
-                if np.isnan(drifter_lon) or np.isnan(drifter_lat):
-                    continue
-
-                if np.isnan(drifter_mass[depth_idx]) or drifter_mass[depth_idx] == 1:
-                    continue
-
-                mass_at_depth.append(drifter_mass[depth_idx])
-
-                T_surface.append(T[0, i])
-                T_100.append(T[idx_100, i])
-                T_200.append(T[depth_idx, i])
-                
-                T_grad_100_200.append(grad_calc(T[:, i], drifter_trajectory, depth_idx, idx_100))
-                T_grad_100.append(grad_calc(T[:, i], drifter_trajectory, idx_100))
-                T_grad_200.append(grad_calc(T[:, i], drifter_trajectory, depth_idx))
-
-            return mass_at_depth, [T_surface, T_100, T_200, T_grad_100, T_grad_200, T_grad_100_200]
-    
-        mass_at_depth, temperature = mass_sum(-200, z, mass, lon, lat, T)
-
-        def correlation_elipse(x, y):
-            cov = np.cov(x, y)
-            cov_coef = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
-            print(cov_coef)
-            radius_x = np.sqrt(1 + cov_coef)
-            radius_y = np.sqrt(1 - cov_coef)
-            return np.mean(x), np.mean(y), np.sqrt(cov[0, 0]), np.sqrt(cov[1, 1]), radius_x, radius_y
-        
-
-        plt.close()
-        fig, ax = plt.subplots(2, 3, sharey=True, figsize = self.figsize)
-        ax = ax.flatten()
-        xlabels = ["T(z = 0 m)", "T(z = -15 m)", "T(z = -200 m)", r"$\frac{T_0-T_{15}}{0 + 15}$", r"$\frac{T_0-T_{200}}{0 + 200}$", r"$\frac{T_{15}-T_{200}}{-15 + 200}$"]
-        for i in range(len(temperature)):
-            cov = correlation_elipse(temperature[i], mass_at_depth)
-            ellipse = Ellipse((0, 0), width= cov[4] * 2, height = cov[5] * 2, facecolor = "none", edgecolor = "red", zorder = 2, linewidth = 3)
-            transf = transforms.Affine2D() \
-                    .rotate_deg(45) \
-                    .scale(cov[2], cov[3]) \
-                    .translate(cov[0], cov[1])
-
-            ellipse.set_transform(transf + ax[i].transData)
-            ax[i].add_patch(ellipse)
-            ax[i].plot(temperature[i][::markevery], mass_at_depth[::markevery], ".", zorder = 1, color = "black")
-            ax[i].set_xlabel(xlabels[i])
-            print(max(temperature[i]))
-        ax[0].set_ylabel(r"$m_i/m_0$")
-        ax[3].set_ylabel(r"$m_i/m_0$")
-        plt.show()
 
     def clean_dataset(self):
         """Get indicies of trajectories which are on land / do not interact (mass stays one forever) or had a problem with reading the temperature."""

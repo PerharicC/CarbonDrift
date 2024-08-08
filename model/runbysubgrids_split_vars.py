@@ -1,6 +1,6 @@
 import os
 
-from carbondrift import *
+from model.carbondrift import *
 import numpy as np
 from datetime import datetime, timedelta
 from copy import copy
@@ -8,7 +8,7 @@ import xarray as xr
 from netCDF4 import Dataset
 import numpy.ma as ma
 
-import carbondriftopen
+import model.carbondriftopen
 
 
 
@@ -67,8 +67,11 @@ class GridRun:
             
             for key, value in self.config.items():
                 o.set_config(key, value)
-
-            o.seed_elements(lon = self.lon, lat = self.lat, z = 0, time = self.time, mass = np.ones(self.lon.shape[0] * self.lat.shape[1]))
+            try:
+                mass = np.ones(self.lon.shape[0] * self.lat.shape[1])
+            except AttributeError:
+                mass = np.ones(len(self.lon))
+            o.seed_elements(lon = self.lon, lat = self.lat, z = 0, time = self.time, mass = mass)
 
             o.run(**kwargs)
         else:    

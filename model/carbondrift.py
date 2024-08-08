@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.random import random
+import scipy
 from opendrift.models.oceandrift import OceanDrift, Lagrangian3DArray
 from datetime import datetime, timedelta
 import logging
@@ -12,7 +13,7 @@ from opendrift.readers import reader_global_landmask
 import sys
 import traceback
 
-from decaydistributions import Decay_Functions
+from model.decaydistributions import Decay_Functions
 
 import psutil
 from numba import jit
@@ -127,7 +128,7 @@ class CarbonDrift(OceanDrift):
         self.horizontal_advection = False
     
     def update(self):
-
+        self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
         if self.horizontal_advection and (self.steps_calculation > 1 or self.task_count == 0):
             self.advect_ocean_current()
 
@@ -273,6 +274,7 @@ class CarbonDrift(OceanDrift):
     
     #The same as the original run() function in basemodel, with a slight order change in the outputfile initialisation and export buffer size.
     #The pause and resume attributes are also changed according to the simulation output.
+
     def run(self,
             time_step=None,
             steps=None,
@@ -332,52 +334,10 @@ class CarbonDrift(OceanDrift):
         self.add_metadata('seed_geojson',
                           geojson.FeatureCollection(self.seed_geojson))
 
-        # Collect fallback values from config into dict
-        self.set_fallback_values(refresh=True)
-
         if outfile is None and export_buffer_length is not None:
             logger.debug('No output file is specified, '
                          'neglecting export_buffer_length')
             export_buffer_length = None
-
-        # Make constant readers if config environment:constant:<var> is
-        c = self.get_configspec('environment:constant:')
-        mr = {}
-        for var in list(c):
-            if c[var]['value'] is not None:
-                mr[var.split(':')[-1]] = c[var]['value']
-        if len(mr) > 0:
-            from opendrift.readers import reader_constant
-            rc = reader_constant.Reader(mr)
-            self.add_reader(rc, first=True)
-
-        missing_variables = self.missing_variables()
-        missing_variables = [
-            m for m in missing_variables if m != 'land_binary_mask'
-        ]
-        if len(missing_variables) > 0:
-            has_fallback = [
-                var for var in missing_variables if var in self.fallback_values
-            ]
-            has_no_fallback = [
-                var for var in missing_variables
-                if var not in self.fallback_values
-            ]
-            #if has_fallback == missing_variables:
-            if len(has_fallback) > 0:  # == missing_variables:
-                logger.info('Fallback values will be used for the following '
-                            'variables which have no readers: ')
-                for var in has_fallback:
-                    logger.info('\t%s: %f' % (var, self.fallback_values[var]))
-            #else:
-            if len(has_no_fallback) > 0 and len(
-                    self._lazy_readers()) == 0:  # == missing_variables:
-                logger.warning(
-                    'No readers added for the following variables: ' +
-                    str(has_no_fallback))
-                raise ValueError('Readers must be added for the '
-                                 'following required variables: ' +
-                                 str(has_no_fallback))
 
         # Some cleanup needed if starting from imported state
         if self.steps_calculation >= 1:
@@ -473,7 +433,7 @@ class CarbonDrift(OceanDrift):
         # Prepare readers for the requested simulation domain/time
         ##############################################################
         max_distance = \
-            self.max_speed*self.expected_steps_calculation * \
+            self.get_config('drift:max_speed')*self.expected_steps_calculation * \
             np.abs(self.time_step.total_seconds())
         deltalat = max_distance / 111000.
         deltalon = deltalat / np.cos(
@@ -493,51 +453,13 @@ class CarbonDrift(OceanDrift):
         if simulation_extent[2] == 360 and simulation_extent[0] < 0:
             simulation_extent[0] = 0
         logger.debug(
-            'Preparing readers for simulation coverage (%s) and time (%s to %s)'
+            'Finalizing environment and preparing readers for simulation coverage (%s) and time (%s to %s)'
             % (simulation_extent, self.start_time, self.expected_end_time))
-        for reader in self.readers.values():
-            logger.debug('\tPreparing %s' % reader.name)
-            reader.prepare(extent=simulation_extent,
-                           start_time=self.start_time,
-                           end_time=self.expected_end_time,
-                           max_speed=self.max_speed)
+        
         # Store expected simulation extent, to check if new readers have coverage
         self.simulation_extent = simulation_extent
-
-        ##############################################################
-        # If no landmask has been added, we determine it dynamically
-        ##############################################################
-        # TODO: some more error checking here
-        # If landmask is requested, it shall not be obtained from other readers
-        if self.get_config('general:use_auto_landmask') is True:
-            if 'land_binary_mask' in self.priority_list:
-                if 'basemap_landmask' in self.priority_list[
-                        'land_binary_mask']:
-                    self.priority_list['land_binary_mask'] = [
-                        'basemap_landmask'
-                    ]
-                elif 'global_landmask' in self.priority_list[
-                        'land_binary_mask']:
-                    self.priority_list['land_binary_mask'] = [
-                        'global_landmask'
-                    ]
-                else:
-                    del self.priority_list['land_binary_mask']
-        if self.get_config('general:use_auto_landmask') is True and \
-                ('land_binary_mask' in self.required_variables and \
-                'land_binary_mask' not in self.priority_list \
-                and 'land_binary_mask' not in self.fallback_values):
-            logger.info(
-                'Adding a dynamical landmask with max. priority based on '
-                'assumed maximum speed of %s m/s. '
-                'Adding a customised landmask may be faster...' %
-                self.max_speed)
-            self.timer_start('preparing main loop:making dynamical landmask')
-            reader_landmask = reader_global_landmask.Reader()
-            self.add_reader(reader_landmask)
-
-            self.timer_end('preparing main loop:making dynamical landmask')
-
+        self.env.finalize(self.simulation_extent)
+        
         ####################################################################
         # Preparing history array for storage in memory and eventually file
         ####################################################################
@@ -545,9 +467,6 @@ class CarbonDrift(OceanDrift):
             self.export_buffer_length = self.expected_steps_output
         else:
             self.export_buffer_length = export_buffer_length
-        
-        if steps > 98:
-            self.export_buffer_length = steps + 2
 
         if self.time_step.days < 0:
             # For backwards simulation, we start at last seeded element
@@ -669,13 +588,37 @@ class CarbonDrift(OceanDrift):
                              self.num_elements_scheduled())
                 logger.debug('===================================' * 2)
 
+                if len(self.elements.lon) > 0:
+                    lonmin = self.elements.lon.min()
+                    lonmax = self.elements.lon.max()
+                    latmin = self.elements.lat.min()
+                    latmax = self.elements.lat.max()
+                    zmin = self.elements.z.min()
+                    zmax = self.elements.z.max()
+                    if latmin == latmax:
+                        logger.debug('\t\tlatitude =  %s' % (latmin))
+                    else:
+                        logger.debug('\t\t%s <- latitude  -> %s' %
+                                     (latmin, latmax))
+                    if lonmin == lonmax:
+                        logger.debug('\t\tlongitude = %s' % (lonmin))
+                    else:
+                        logger.debug('\t\t%s <- longitude -> %s' %
+                                     (lonmin, lonmax))
+                    if zmin == zmax:
+                        logger.debug('\t\tz = %s' % (zmin))
+                    else:
+                        logger.debug('\t\t%s   <- z ->   %s' % (zmin, zmax))
+                    logger.debug('---------------------------------')
+
                 self.environment, self.environment_profiles, missing = \
-                    self.get_environment(list(self.required_variables),
+                    self.env.get_environment(list(self.required_variables),
                                          self.time,
                                          self.elements.lon,
                                          self.elements.lat,
                                          self.elements.z,
-                                         self.required_profiles)
+                                         self.required_profiles,
+                                         self.profiles_depth)
 
                 self.store_previous_variables()
 
@@ -768,22 +711,25 @@ class CarbonDrift(OceanDrift):
         #############################
         for var in self.required_variables:
             keyword = 'reader_' + var
-            if var not in self.priority_list:
-                if var in self.fallback_values:
-                    self.add_metadata(keyword, self.fallback_values[var])
+            if var not in self.env.priority_list:
+                fallback = self.get_config(f'environment:fallback:{var}')
+                if fallback is not None:
+                    self.add_metadata(keyword, fallback)
                 else:
                     self.add_metadata(keyword, None)
             else:
-                readers = self.priority_list[var]
+                readers = self.env.priority_list[var]
                 if readers[0].startswith(
-                        'constant_reader') and var in self.readers[
+                        'constant_reader') and var in self.env.readers[
                             readers[0]]._parameter_value_map:
                     self.add_metadata(
-                        keyword,
-                        self.readers[readers[0]]._parameter_value_map[var][0])
+                        keyword, self.env.readers[
+                            readers[0]]._parameter_value_map[var][0])
                 else:
-                    self.add_metadata(keyword, self.priority_list[var])
+                    self.add_metadata(keyword, self.env.priority_list[var])
 
+        self.timer_end('cleaning up')
+        self.timer_end('total time')
         if outfile is not None:
             logger.debug('Writing and closing output file: %s' % outfile)
             # Write buffer to outfile, and close
@@ -814,12 +760,9 @@ class CarbonDrift(OceanDrift):
                 del self.environment_profiles
             self.io_import_file(outfile)
 
-        self.timer_end('cleaning up')
-        self.timer_end('total time')
-
         if not self.pause:
             self.resume = False
-
+    
     def ram_check(self):
         return psutil.Process().memory_info().rss / (10 ** 9) >= self.max_ram
 
