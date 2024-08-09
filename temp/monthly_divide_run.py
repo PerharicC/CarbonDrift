@@ -5,10 +5,9 @@ import sys
 
 sys.path.append("/home/perharic/Documents/model")
 
-from divideandconquer_split_vars import DivideAndConquerCarbonDrift
+from model.massdecay.divideandconquer import DivideAndConquerCarbonDrift
 from opendrift.readers import reader_netCDF_CF_generic
 from opendrift.readers import reader_global_landmask
-from useful_functions import *
 
 from global_land_mask import globe
 
