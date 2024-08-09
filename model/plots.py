@@ -58,7 +58,7 @@ class Plot:
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200,
                  diff = True, absolute = False, fontweight = "normal",
-                 outfile = None, shrink = 1):
+                 outfile = None, shrink = 1, clip = None):
 
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -108,6 +108,13 @@ class Plot:
         ice, seafloor = get_status_info(self.obj.data)
         self.ice_idx = ice
         self.seafloor_idx = seafloor
+
+        logger.debug("Setting up clipping.")
+        if clip is None:
+            self.clip = False
+        else:
+            self.clip = True
+            self.Vmin, self.Vmax = [float(i.replace("m", "-")) for i in clip.split(":")]
 
     @staticmethod
     def get_cmap(x, map):
@@ -184,6 +191,14 @@ class Plot:
         self.fig = fig
         self.ax = ax
     
+    def clip_mass(self, mass):
+        m, M = np.min(mass[np.invert(np.isnan(mass))]), np.max(mass[np.invert(np.isnan(mass))])
+        row, col = np.where(mass < self.Vmin)
+        mass[row, col] = self.Vmin
+        row, col = np.where(mass > self.Vmax)
+        mass[row, col] = self.Vmax
+        return mass
+
     def mass_map(self):
         """Plot the mass reached at depths [-200m, -1000m, sea_floor] over a cartopy map.
 
@@ -216,6 +231,10 @@ class Plot:
         
         logger.debug("Start calculating mass at given depth.")
         mass1, m0 = self.zone_crossing_event(self.obj, self.lons, self.lats, h, bad1, bad2)
+
+        if self.clip and not self.diff:
+            mass1 = self.clip_mass(np.copy(mass1))
+        
         logger.debug("Finished calculating mass at given depth.")
 
         if self.diff:
@@ -227,7 +246,8 @@ class Plot:
                 mass = np.copy(mass1) - mass2
             else:
                 mass = (np.copy(mass1) - mass2) / np.copy(mass1)
-            
+            if self.clip:
+                mass = self.clip_mass(np.copy(mass))
             m, mid, M = self.get_colormap_midpoint(mass)
         
         logger.debug("Start plotting")

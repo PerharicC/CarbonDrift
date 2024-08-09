@@ -12,6 +12,7 @@ def valid_figsize(s:str):
 def configure_title(s:str):
     return s.replace("_", " ")
 
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("method", type = str)
@@ -33,6 +34,7 @@ def main():
     p.add_argument("-fwgt", "--fontweight", type = str, default="normal")
     p.add_argument("-d", "--depth", type = float, default=-200,
                    help = "Depth at which calculation takes placce. If >= 5000, it is set to sea floor.")
+    p.add_argument("-clip", type = str, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
     p.add_argument("-sh", "--shrink", type = float, default=1)
 
     args = p.parse_args()
