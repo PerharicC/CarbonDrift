@@ -26,7 +26,7 @@ def main():
                    help = "PLot absolute diffrence.")
     p.add_argument("-diff", action="store_false",
                    help="If set, don't plot difference of two files.")
-    p.add_argument("-o", "--outfile", default="outfile.nc")
+    p.add_argument("-o", "--outfile", type = str)
     p.add_argument("-fs", "--figsize", default = (20, 20), type=valid_figsize,
                    help="Figsize - format H:W")
     p.add_argument("-fts", "--fontsize", type = int, default = 17)
