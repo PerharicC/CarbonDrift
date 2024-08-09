@@ -9,7 +9,7 @@ import cartopy
 from cartopy import config
 import cartopy.crs as ccrs
 
-from model.carbondrift import *
+from model.massdecay.carbondrift import *
 from model.logger import Logger
 
 log = Logger("CarbonDrift.model.plots")
@@ -41,6 +41,16 @@ class Open:
         time = self.data.variables["time"]
         units = time.units
         return num2date(time[:], units)
+
+def get_status_info(data):
+    status = data.variables["status"]
+    meanings = status.flag_meanings.split()
+    values = status.flag_values
+    ice = "Ice"
+    seafloor = "Reached_Sea_Floor"
+    ice_idx = meanings.index(ice)
+    seafloor_idx = meanings.index(seafloor)
+    return values[ice_idx], values[seafloor_idx]
 
 class Plot:
 
@@ -93,6 +103,11 @@ class Plot:
         logger.debug("Creating time array.")
         self.time = self.obj.get_time_array()
 
+        logger.debug("Decrypting status numeberings.")
+
+        ice, seafloor = get_status_info(self.obj.data)
+        self.ice_idx = ice
+        self.seafloor_idx = seafloor
 
     @staticmethod
     def get_cmap(x, map):
@@ -196,6 +211,7 @@ class Plot:
         
         logger.debug("Searching for bad trajectories.")
         bad1 = self.clean_dataset(self.obj)
+        bad2 = []
         if self.diff: bad2 = self.clean_dataset(self.obj2)
         
         logger.debug("Start calculating mass at given depth.")
@@ -261,7 +277,7 @@ class Plot:
         status = np.ma.filled(status, np.nan)
 
         # @jit(nopython = True)
-        def mass_sum(lons, lats, depth, z, mass, lon, lat, bad1 = bad1, bad2 = bad2):
+        def mass_sum(lons, lats, depth, z, mass, lon, lat, sfidx, bad1 = bad1, bad2 = bad2):
             logger.debug("Start summing masses.")
             mass_at_depth = np.zeros((len(lons), len(lats)))
             m0 = 0
@@ -290,8 +306,7 @@ class Plot:
                         raise ValueError("Depth decreases.")
                     else:
                         s = status[:, i]
-                        #TODO change 3 and 0 to read from nc file, if numebrs change!!
-                        sea_floor = np.where(s == 3)[0]
+                        sea_floor = np.where(s == sfidx)[0]
                         if len(sea_floor) >0:
                             depth_idx = sea_floor[0]
                         else:
@@ -315,7 +330,7 @@ class Plot:
             logger.debug("Finish summing masses.")
             return mass_at_depth, m0
         
-        return mass_sum(lons, lats, depth, z, mass, lon, lat)
+        return mass_sum(lons, lats, depth, z, mass, lon, lat, self.seafloor_idx)
     
     def create_timedelta_array(self, n):
         dt = datetime.strptime(str(self.time[1]),'%Y-%m-%d %H:%M:%S') - datetime.strptime(str(self.time[0]),'%Y-%m-%d %H:%M:%S')
@@ -361,7 +376,6 @@ class Plot:
             if (drifter_trajectory[trajectory_nans]>0).any() or np.any(drifter_mass[1:] >= 1):
                 bad_trajectories.append(i)
             
-            #TODO Change 2 to read from nc file!!
-            elif np.any(status[:, i] == 2): #Ice
+            elif np.any(status[:, i] == self.ice_idx): #Ice
                 bad_trajectories.append(i)
         return bad_trajectories
