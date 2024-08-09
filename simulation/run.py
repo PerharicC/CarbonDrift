@@ -46,7 +46,7 @@ def main():
     run_simulation(**vars(args))
 
 def run_simulation(**kwargs):
-    log = Logger("CarbonDrift.scripts.run")
+    log = Logger("CarbonDrift.simulation.run")
     logger = log.LOGGER
     logger.info("Preparing Simulation.")
     simulation = PrepareSimulation(**kwargs)

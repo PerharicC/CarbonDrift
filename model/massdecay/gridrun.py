@@ -1,6 +1,6 @@
 import os
 
-from model.carbondrift import *
+from model.massdecay.carbondrift import *
 import numpy as np
 from datetime import datetime, timedelta
 from copy import copy
@@ -8,7 +8,7 @@ import xarray as xr
 from netCDF4 import Dataset
 import numpy.ma as ma
 
-import model.carbondriftopen
+# import model.massdecay.carbondriftopen
 
 
 

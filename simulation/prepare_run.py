@@ -1,6 +1,6 @@
 import numpy as np
-from model.runbysubgrids_split_vars import GridRun
-from model.carbondrift import *
+from model.massdecay.gridrun import GridRun
+from model.massdecay.carbondrift import *
 from simulation.param_classifier import Parameters
 from opendrift.readers import reader_global_landmask
 from opendrift.readers import reader_netCDF_CF_generic
@@ -8,7 +8,7 @@ from simulation.seeding import *
 
 from model.logger import Logger
 
-log = Logger("CarbonDrift.scripts.prepare_run")
+log = Logger("CarbonDrift.simulation.prepare_run")
 logger = log.LOGGER
 
 

@@ -17,7 +17,7 @@ from opendrift.readers import reader_global_landmask
 import sys
 import traceback
 
-from model.decaydistributions import Decay_Functions
+from model.massdecay.decaydistributions import Decay_Functions
 
 import psutil
 from numba import jit
