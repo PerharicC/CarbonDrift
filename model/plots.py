@@ -5,9 +5,12 @@ from matplotlib.widgets import Slider, Button, CheckButtons
 from matplotlib import animation
 from matplotlib.gridspec import GridSpec
 
+import matplotlib.ticker as mticker
+
 import cartopy
 from cartopy import config
 import cartopy.crs as ccrs
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 from model.massdecay.carbondrift import *
 from model.logger import Logger
@@ -103,7 +106,7 @@ class Plot:
         logger.debug("Creating time array.")
         self.time = self.obj.get_time_array()
 
-        logger.debug("Decrypting status numeberings.")
+        logger.debug("Decrypting status numberings.")
 
         ice, seafloor = get_status_info(self.obj.data)
         self.ice_idx = ice
@@ -268,6 +271,17 @@ class Plot:
         
         if self.title is not None:
             ax.set_title(self.title, fontweight = self.fontweight)
+
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+        gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
+        gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+        ax.set_xticks([-180, -90, 0, 90, 180])
+        ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
+        ax.set_yticks([-90, -45, 0, 45, 90])
+        ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
 
         plt.tight_layout()
 
