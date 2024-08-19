@@ -24,16 +24,16 @@ def main():
     p.add_argument("-t", "--title", type = str, required=False,
                    help = "Figure title - format aaa_bbb_ccc")
     p.add_argument("-abs", "--absolute", action="store_true",
-                   help = "PLot absolute diffrence.")
+                   help = "Plot absolute difference.")
     p.add_argument("-diff", action="store_false",
                    help="If set, don't plot difference of two files.")
     p.add_argument("-o", "--outfile", type = str)
     p.add_argument("-fs", "--figsize", default = (20, 20), type=valid_figsize,
-                   help="Figsize - format H:W")
+                   help="Figsize - format W:H")
     p.add_argument("-fts", "--fontsize", type = int, default = 17)
     p.add_argument("-fwgt", "--fontweight", type = str, default="normal")
     p.add_argument("-d", "--depth", type = float, default=-200,
-                   help = "Depth at which calculation takes placce. If >= 5000, it is set to sea floor.")
+                   help = "Depth at which calculation takes place. If >= 5000, it is set to sea floor.")
     p.add_argument("-clip", type = str, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
     p.add_argument("-sh", "--shrink", type = float, default=1)
 
