@@ -47,8 +47,19 @@ class RectangleSeed:
 class LineSeed:
 
     def __init__(self, lon, lat):
-        lonmin, lonmax, lonnum = [float(i) for i in lon.split("-")]
-        latmin, latmax, latnum = [float(i) for i in lat.split("-")]
+        lons = lon.split(":")
+        lats= lat.split(":")
+        for i in range(3):
+            if "m" in lons[i]:
+                lons[i] = -float(lons[i].strip("m"))
+            else:
+                lons[i] = float(lons[i])
+            if "m" in lats[i]:
+                lats[i] = -float(lats[i].strip("m"))
+            else:
+                lats[i] = float(lats[i])
+        lonmin, lonmax, lonnum = lons
+        latmin, latmax, latnum = lats
         lonnum = int(lonnum)
         latnum = int(latnum)
         if lonnum != latnum:
