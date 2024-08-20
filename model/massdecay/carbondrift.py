@@ -130,14 +130,14 @@ class CarbonDrift(OceanDrift):
         self.deactivate = False
 
         #Allow horizontal advection.
-        self.horizontal_advection = False
+        self.horizontal_advection = True
     
     def update(self):
         if self.time == self.start_time:
             self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
         negative_temperature_idx = self.environment.sea_water_temperature < 0
         self.environment.sea_water_temperature[negative_temperature_idx] = 0
-        if self.horizontal_advection and (self.steps_calculation > 1 or self.task_count == 0):
+        if self.horizontal_advection and self.steps_calculation > 1:
             self.advect_ocean_current()
 
         self.elements.mass = self.microbial_decay()
