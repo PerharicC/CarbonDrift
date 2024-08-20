@@ -194,13 +194,13 @@ class Plot:
         self.fig = fig
         self.ax = ax
     
-    def clip_mass(self, mass):
-        m, M = np.min(mass[np.invert(np.isnan(mass))]), np.max(mass[np.invert(np.isnan(mass))])
-        row, col = np.where(mass < self.Vmin)
-        mass[row, col] = self.Vmin
-        row, col = np.where(mass > self.Vmax)
-        mass[row, col] = self.Vmax
-        return mass
+    def clip_array(self, array):
+        m, M = np.min(array[np.invert(np.isnan(array))]), np.max(array[np.invert(np.isnan(array))])
+        row, col = np.where(array < self.Vmin)
+        array[row, col] = self.Vmin
+        row, col = np.where(array > self.Vmax)
+        array[row, col] = self.Vmax
+        return array
 
     def mass_map(self):
         """Plot the mass reached at depths [-200m, -1000m, sea_floor] over a cartopy map.
@@ -236,7 +236,7 @@ class Plot:
         mass1, m0 = self.zone_crossing_event(self.obj, self.lons, self.lats, h, bad1, bad2)
 
         if self.clip and not self.diff:
-            mass1 = self.clip_mass(np.copy(mass1))
+            mass1 = self.clip_array(np.copy(mass1))
         
         logger.debug("Finished calculating mass at given depth.")
 
@@ -250,7 +250,7 @@ class Plot:
             else:
                 mass = (np.copy(mass1) - mass2) / np.copy(mass1)
             if self.clip:
-                mass = self.clip_mass(np.copy(mass))
+                mass = self.clip_array(np.copy(mass))
             m, mid, M = self.get_colormap_midpoint(mass)
         
         logger.debug("Start plotting")
@@ -413,3 +413,132 @@ class Plot:
             elif np.any(status[:, i] == self.ice_idx): #Ice
                 bad_trajectories.append(i)
         return bad_trajectories
+    
+    def current_strength(self):
+        plt.close()
+        fig, ax = plt.subplots(1, 1, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
+        
+        logger.debug("Initialize colormap.")
+        if self.cmap is None:
+            cmap = "Reds"
+        else:
+            try:
+                cmap = getattr(mpl.cm, self.cmap)
+            except AttributeError:
+                logger.debug("Specified colormap doesn't exist, changing to Reds.")
+                cmap = "Reds"
+        
+        logger.debug("Searching for bad trajectories.")
+        bad = self.clean_dataset(self.obj)
+
+        
+        logger.debug("Start calculating distance.")
+        distance, in_cell = self.calculate_horizontal_distance(self.obj, self.lons, self.lats, bad)
+        
+        D = np.copy(distance)
+        rows, cols = np.where(D == 0)
+        D[rows, cols] = np.nan
+        rows, cols = np.where(in_cell == 0)
+        D[rows, cols] = np.nan
+        logger.debug("Start plotting")
+        ax.coastlines(zorder = 3, resolution='10m')
+
+        if self.clip:
+            D = self.clip_array(np.copy(D))
+        
+        sm = ax.contourf(self.lons, self.lats, D.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1, extend = "max")
+        # ax.contourf(self.lons, self.lats, np.ma.masked_where(distance != 0, distance).T,colors='none', hatches=['xx'], extend='both')
+        ax.scatter(self.lons[np.where(in_cell==0)[0]], self.lats[np.where(in_cell==0)[1]], color = "k", label = "moved out of cell")
+        ax.legend()
+
+        cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
+        cb.set_label(r"$|\vec{r}(t_F) - \vec{r}(t_0)|$ [km]")
+        
+        if self.title is not None:
+            ax.set_title(self.title, fontweight = self.fontweight)
+
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+        gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
+        gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+        ax.set_xticks([-180, -90, 0, 90, 180])
+        ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
+        ax.set_yticks([-90, -45, 0, 45, 90])
+        ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
+
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+    
+    def calculate_horizontal_distance(self, obj: Open, lons, lats, bad):
+
+        from haversine import haversine, Unit
+        from numba_progress import ProgressBar
+        from tqdm import trange
+
+        logger.debug("Reading required simulation properties.")
+
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+        status = obj.get_property("status")
+        status = np.ma.MaskedArray(status.data, status.mask, float)
+        status = np.ma.filled(status, np.nan)
+        moving = obj.get_property("moving")
+        moving = np.ma.MaskedArray(moving.data, moving.mask, float)
+        moving = np.ma.filled(moving, np.nan)
+
+        # @jit(nogil=True)
+        def fast_distance_calculator(lons, lats, lon, lat, moving, bad):
+            distance_traveled = np.zeros((len(lons), len(lats)))
+            is_in_cell = np.ones((len(lons), len(lats)))
+
+            for i in trange(lon.shape[1]):
+
+                #Remove bad particles.
+                if i in bad:
+                    # progress.update(1)
+                    continue
+
+                drifter_lon = lon[:, i]
+                drifter_lat = lat[:, i]
+
+                movement_stopped = np.where(moving[:, i] == 0)[0]
+
+                if len(movement_stopped) > 0:
+                    movement_stopped = movement_stopped[0]
+                else:
+                    movement_stopped = len(drifter_lat) - 1
+                
+                pos1 = (drifter_lat[0], drifter_lon[0])
+                pos2 = (drifter_lat[movement_stopped], drifter_lon[movement_stopped])
+
+                lon_grid = np.argmin(np.abs(lons - pos1[1]))
+                lat_grid = np.argmin(np.abs(lats - pos1[0]))
+                if np.abs(pos2[0] - pos1[0]) > (lats[1] - lats[0]) / 2 or np.abs(pos1[1] - pos2[1]) > (lons[1] - lons[0]) / 2:
+                    is_in_cell[lon_grid, lat_grid] = 0
+                    d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
+                    distance_traveled[lon_grid, lat_grid] = d
+                else:
+                    # d = 2 * 6371 * np.arcsin(np.sqrt(np.sin((pos2[0] - pos1[0]) / 2) ** 2 + 
+                    #                                  np.cos(pos2[0]) * np.cos(pos1[0]) * np.sin((pos2[1] - pos1[1]) / 2) ** 2))
+                    
+                    d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
+                    # print(d)
+                    distance_traveled[lon_grid, lat_grid] = d
+                # progress.update(1)
+            return distance_traveled, is_in_cell
+        
+        # with ProgressBar(total = lon.shape[1]) as progress:
+        #     d, in_cell = fast_distance_calculator(lons, lats, lon, lat, moving, bad, progress)
+
+        d, in_cell = fast_distance_calculator(lons, lats, lon, lat, moving, bad)
+        return d, in_cell
