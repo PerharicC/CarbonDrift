@@ -61,7 +61,8 @@ class Plot:
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200,
                  diff = True, absolute = False, fontweight = "normal",
-                 outfile = None, shrink = 1, clip = None):
+                 outfile = None, shrink = 1, clip = None, locations = None,
+                 loclines = None, prop1 = None, prop2 = None):
 
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -119,6 +120,16 @@ class Plot:
             self.clip = True
             self.Vmin, self.Vmax = [float(i.replace("m", "-")) for i in clip.split(":")]
 
+        if loclines is None:
+            self.loclines = False
+        else:
+            self.loclines = loclines
+        
+        self.loc = locations
+
+        self.prop1 = prop1
+        self.prop2 = prop2
+    
     @staticmethod
     def get_cmap(x, map):
         cmap = plt.get_cmap(map, len(x))
@@ -542,3 +553,183 @@ class Plot:
 
         d, in_cell = fast_distance_calculator(lons, lats, lon, lat, moving, bad)
         return d, in_cell
+
+    def drifter_locations(self):
+        from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+        import matplotlib.style as style
+
+        style.use('seaborn-v0_8-bright')
+
+        if self.loc is None:
+            raise AttributeError("Locations are not specified.")
+        
+        plt.close()
+        fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.PlateCarree()}, figsize = self.figsize)
+
+        logger.debug("Searching for bad trajectories.")
+        bad = self.clean_dataset(self.obj)
+        logger.debug("Reading required simulation properties.")
+
+        lon = self.obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = self.obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        xticks = []
+        yticks = []
+        k = 1
+
+        for i, j in self.loc:
+            lon_idx = np.where(lon[0, :] == i)
+            lat_idx = np.where(lat[0, :] == j)
+            idx = np.intersect1d(lon_idx, lat_idx)
+            if len(idx) == 0:
+                logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
+                continue
+            else:
+                idx = idx[0]
+            
+            if idx in bad:
+                logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
+                continue
+            
+            ax.plot(lon[0, idx], lat[0, idx], "o", markersize = 10, label = "L" + str(k))
+            if self.loclines:
+                ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
+                ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
+            xticks.append(lon[0, idx])
+            yticks.append(lat[0, idx])
+            k += 1
+        
+        ax.set_global()
+        ax.add_feature(cartopy.feature.LAND, facecolor="gray",edgecolor='black', zorder = 1)
+        ax.coastlines(zorder = 2)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(r"${}^\circ $".format(i) for i in xticks)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
+        
+        ax.legend()
+
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+
+    def drifter_properties(self):
+        import matplotlib.style as style
+        
+        style.use('seaborn-v0_8-bright')
+        
+        plt.close()
+
+        self.fig, self.ax = plt.subplots(1, 1)
+
+        if self.loc is None:
+            raise AttributeError("Locations are not specified.")
+        
+
+        logger.debug("Searching for bad trajectories.")
+        bad1 = self.clean_dataset(self.obj)
+        bad2 = self.clean_dataset(self.obj2)
+        logger.debug("Reading required simulation properties.")
+
+        lon1 = self.obj.get_property("lon")
+        lon1 = np.ma.filled(lon1, np.nan)
+
+        lat1 = self.obj.get_property("lat")
+        lat1 = np.ma.filled(lat1, np.nan)
+
+        lon2 = self.obj2.get_property("lon")
+        lon2 = np.ma.filled(lon2, np.nan)
+
+        lat2 = self.obj2.get_property("lat")
+        lat2 = np.ma.filled(lat2, np.nan)
+
+        if self.prop1 is None:
+            logger.info("Property 1 not specified. Setting x to time.")
+            self.prop1 = "time"
+        if self.prop2 is None:
+            logger.info("Property 2 not specified. Setting y to mass.")
+            self.prop2 = "mass"
+        
+        if self.prop1 != "time":
+            x1 = self.obj.get_property(self.prop1)
+            x1 = np.ma.filled(x1, np.nan)
+            x2 = self.obj2.get_property(self.prop1)
+            x2 = np.ma.filled(x2, np.nan)
+            unitsx = "[" + self.obj.data[self.prop1].units + "]"
+        else:
+            x1 = self.create_timedelta_array(lon1.shape[0])
+            x2 = self.create_timedelta_array(lon2.shape[0])
+            unitsx = "[h]"
+        
+        if self.prop2 != "time":
+            y1 = self.obj.get_property(self.prop2)
+            y1 = np.ma.filled(y1, np.nan)
+            y2 = self.obj2.get_property(self.prop2)
+            y2 = np.ma.filled(y2, np.nan)
+            unitsy = "[" + self.obj.data[self.prop2].units + "]"
+        else:
+            y1 = self.create_timedelta_array(lon1.shape[0])
+            y2 = self.create_timedelta_array(lon2.shape[0])
+            unitsy = "[h]"
+
+        k = 1
+
+        for i, j in self.loc:
+            lon_idx1 = np.where(lon1[0, :] == i)
+            lat_idx1 = np.where(lat1[0, :] == j)
+            idx1 = np.intersect1d(lon_idx1, lat_idx1)
+            lon_idx2 = np.where(lon2[0, :] == i)
+            lat_idx2 = np.where(lat2[0, :] == j)
+            idx2 = np.intersect1d(lon_idx2, lat_idx2)
+
+            if len(idx1) == 0 or len(idx2) == 0:
+                logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
+                continue
+            else:
+                idx1 = idx1[0]
+                idx2 = idx2[0]
+            
+            if idx1 in bad1 or idx2 in bad2:
+                logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
+                continue
+            
+            if self.prop1 == "time":
+                X1 = x1
+                X2 = x2
+            else:
+                X1 = x1[:, idx1]
+                X2 = x2[:, idx2]
+            
+            if self.prop2 == "time":
+                Y1 = y1
+                Y2 = y2
+            else:
+                Y1 = y1[:, idx1]
+                Y2 = y2[:, idx2]
+            # color = next(self.ax._get_lines.prop_cycler)['color']
+            plot1 = self.ax.plot(X1, Y1, label = "L" + str(k) + " clim")
+            color = plot1[0].get_color()
+            self.ax.plot(X2, Y2, linestyle = "dashed", label = "L" + str(k) + " MHW", color = color)
+            k += 1
+        
+        self.ax.set_xlabel(self.prop1 + " " + unitsx)
+        self.ax.set_ylabel(self.prop2 + " " + unitsy)
+
+        self.ax.legend()
+        
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+
+              

@@ -12,6 +12,21 @@ def valid_figsize(s:str):
 def configure_title(s:str):
     return s.replace("_", " ")
 
+def configure_locations(s:str):
+    split = s.split(",")
+    proper_format_locs = []
+    for loc in split:
+        i, j = loc.split(":")
+        if "m" in i:
+            lon = -float(i.strip("m"))
+        else:
+            lon = float(i)
+        if "m" in j:
+            lat = -float(j.strip("m"))
+        else:
+            lat = float(j)
+        proper_format_locs.append((lon, lat))
+    return proper_format_locs
 
 def main():
     p = argparse.ArgumentParser()
@@ -36,6 +51,11 @@ def main():
                    help = "Depth at which calculation takes place. If >= 5000, it is set to sea floor.")
     p.add_argument("-clip", type = str, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
     p.add_argument("-sh", "--shrink", type = float, default=1)
+    p.add_argument("-lines", "--loclines", action="store_true")
+    p.add_argument("-loc", "--locations", type = str,
+                   help = "Specific plotting locations - format lon1:lat1,lon2:lat2...")
+    p.add_argument("-p1", "--prop1", type = str, help="Property to plot on x axis.")
+    p.add_argument("-p2", "--prop2", type = str, help="Property to plot on y axis.")
 
     args = p.parse_args()
     plot(**vars(args))
@@ -51,6 +71,9 @@ def plot(**kwargs):
 
     if kwargs["title"] is not None:
         kwargs["title"] = configure_title(kwargs["title"])
+    
+    if kwargs["locations"] is not None:
+        kwargs["locations"] = configure_locations(kwargs["locations"])
 
     p = Plot(**kwargs)
     getattr(p, plotmethod)()
