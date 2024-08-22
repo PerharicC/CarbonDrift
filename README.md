@@ -18,52 +18,56 @@ Now that we have successfully ran and saved a simulation to a netCDF file, we ca
 ```console
 ~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> -f1 <file1 location, e.g. clim.nc> -f2 <file2 location, e.g. MHW.nc (not necessary if not plotting difference)> -lons <lon grid txt filepath (created in simulation)> -lats <lat grid txt filepath (created in simulation)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
 ```
-# Old not yet updated...
-### Plot the area of where the elements were initially seeded
 
-To plot the area of the grid where the elements were initially seeded, together with the two marked locations, we call the method
+### Plot locations of specified drifters
 
-```python
-p.area(lons, lats)
+```console
+~/CarbonDrift$ python -m plotting.plot_run drifter_locations -f1 <file1 location, e.g. clim.nc> -loc <locations in format lon1:lat1,lon2:lat2 etc> -o <outfile.pdf filepath> -lines
 ```
 
-![](/images/fig1_loc2.png)
+Add argument lines only if you would like to display gridlines to the drifter locations.
 
+**Example:**
 
-### Plot the z to fraction of mass dependance
-
-To plot $z(\Delta m/m_0)$ at the two specified locations, we call the method
-
-```python
-p.mass_z(mhw_file)
+```console
+~/CarbonDrift$ python -m plotting.plot_run drifter_locations -f1 <file1.nc> -loc m135:0,20:m45,90:m20 -lines
 ```
 
-![](/images/fig3_dm_m0_exp_loc2.png)
+**Output:**
 
+![](/images/locations.png)
 
-### Plot the z to time dependance
+### Plot some drifter properties
 
-To plot $z(t)$ at the two specified locations, we call the method
+To make a 2D plot of some property vs another property fo two different simulations type in terminal:
 
-```python
-p.time_z(mhw_file)
+```console
+~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1 location, e.g. clim.nc> -f2<file2 location, e.g. MHW.nc> -loc <locations in format lon1:lat1,lon2:lat2 etc> -o <outfile.pdf filepath> -p1 <property on x axis> -p2 <property on y axis>
 ```
 
-![](/images/fig4_exp_loc2.png)
+One can choose between properties
 
-
-### Plot the fraction of mass, which crossed a certain sea depth
-
-To plot the fraction of mass, which had crossed the euphotic and twilight zones or had reached the sea floor we call the method
 
 ```python
-p.mass_map(lons, lats, mhw_file, write_file = "some_text.txt")
+["time", "mass", "z", "temperature", "x_sea_water_velocity", "y_sea_water_velocity"]
 ```
 
-We use the *write_file* argument to store the calculations into a .txt file. The next time we run the code we simply change the argument *write_file*&rarr;*read_file*.
+**Example1:**
 
-Example of an output can be found [here](/images/fig5_dm_m0_exp.pdf)
+```console
+~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1.nc> -f2<file2.nc> -loc m135:0,20:m45,90:m20 -p1 time -p2 mass
+```
 
+**Output1:**
 
+![](/images/mass_t.png)
 
+**Example2:**
 
+```console
+~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1.nc> -f2<file2.nc> -loc m135:0,20:m45,90:m20 -p1 mass -p2 z
+```
+
+**Output2:**
+
+![](/images/z_mass.png)
