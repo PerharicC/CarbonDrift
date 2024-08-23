@@ -42,6 +42,8 @@ class PrepareSimulation:
         readers.append(tmp)
         if current is not None:
             curr = reader_netCDF_CF_generic.Reader(current)
+            curr.verticalbuffer = temperaturebuffer
+            # curr.always_valid = True
             readers.append(curr)
         readers.append(reader_global_landmask.Reader())
         return readers
@@ -69,4 +71,4 @@ class PrepareSimulation:
         for key, value in self.config.items():
             self.obj.set_config(key, value)
         
-        self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=0, mass = np.ones(len(self.seeder.lon)), time=time)
+        self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z, mass = self.seeder.mass, time=time)

@@ -29,7 +29,7 @@ class Parameters:
                 self.simulation_run["time_step"] = value
             elif key in ["steps", "outfile"]:
                 self.simulation_run[key] = value
-            elif key in ["lon", "lat", "skip"]:
+            elif key in ["lon", "lat", "skip", "massdata", "species", "z"]:
                 self.seeding[key] = value
             else:
                 raise Warning("Got an unexpected parameter: " + key)

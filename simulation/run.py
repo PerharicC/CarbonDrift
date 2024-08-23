@@ -5,6 +5,8 @@ from simulation.prepare_run import PrepareSimulation
 
 from model.logger import Logger
 
+import json
+
 def valid_date(s):
     try:
         return datetime.strptime(s, "%Y-%m-%d-%H")
@@ -18,8 +20,17 @@ def valid_time_step(s):
     except ValueError:
         raise argparse.ArgumentTypeError(f"not a valid time format: {s!r}")
 
+def save_params(path, params):
+    import time
+    from copy import copy
+    p = copy(params)
+    p["TIME OF SIMULATION RUN"] = time.asctime()
+    
+    with open(path, "a") as file:
+        json.dump(p, file, indent=4, default=str)
+
 def main():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument("-sim", "--simulation_type", default="normal", choices=["normal", "grid", "DAC"])
     p.add_argument("-tmp", "--temperature", help="NetCDF temperature file.", type = str, required=True)
     p.add_argument("-c", "--current", help="NetCDF current file.", type = str, required=False)
@@ -42,12 +53,19 @@ def main():
     p.add_argument("-lon", required=False, type = str, help = "Longitude seeding - format min:max:seeednum. Use m for minus sign.")
     p.add_argument("-lat", required=False, type = str, help = "Latitude seeding - format min:max:seeednum. Use m for minus sign.")
     p.add_argument("-oceanonly", action="store_true")
+    p.add_argument("-species", type = str, default = "Chordata")
+    p.add_argument("-massdata", type = str, help = "Path to initaal mass data. If None, mass is set to one in all cells.")
+    p.add_argument("-z", type = int, help = "Seeding depth.", default=0)
     args = p.parse_args()
     run_simulation(**vars(args))
 
 def run_simulation(**kwargs):
     log = Logger("CarbonDrift.simulation.run")
     logger = log.LOGGER
+
+    logger.info("Saving parameters.")
+    save_params("saved_params.json", kwargs)
+
     logger.info("Preparing Simulation.")
     simulation = PrepareSimulation(**kwargs)
     logger.info("Simulation is ready.")

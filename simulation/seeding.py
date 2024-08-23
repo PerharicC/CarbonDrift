@@ -2,6 +2,36 @@ from netCDF4 import Dataset
 import numpy as np
 from global_land_mask import globe
 import os
+import pickle
+
+
+def load_data(path):
+    with open(path, "rb") as f:
+        data = pickle.load(f)
+    return data
+
+def generate_masses(lon, lat, species:str, path:str):
+    data = load_data(path)
+    keys = list(data.keys())
+    found = False
+    for i in range(len(keys)):
+        if species.lower() == keys[i].lower():
+            species = keys[i]
+            found = True
+            break
+    
+    if not found:
+        raise NameError("Specified species is not in given data.")
+        
+    lons, lats, mass = data[species]["lons"], data[species]["lats"], data[species]["mass"]
+    M = []
+
+    for lam, phi in zip(lon, lat):
+        i, j = np.argwhere((lons == lam) & (lats == phi)).ravel()
+        M.append(mass[i, j])
+    
+    return M
+
 
 class RectangleSeed:
 
@@ -73,7 +103,7 @@ class LineSeed:
 
 class Seed:
 
-    def __init__(self, seedtype, ncfile = None, skip = 1, lon = None, lat  = None):
+    def __init__(self, seedtype, species, massdata, ncfile = None, skip = 1, lon = None, lat  = None, z = 0):
         if seedtype == "rectangle":
             if ncfile is None:
                 raise NameError("Missing netCDF file for seeding.")
@@ -86,4 +116,5 @@ class Seed:
             
             o = LineSeed(lon, lat)
             self.lon, self.lat = o.lons, o.lats
-
+        self.mass = generate_masses(self.lon, self.lat, species, massdata)
+        self.z = -np.abs(z)
