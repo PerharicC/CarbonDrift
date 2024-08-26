@@ -56,6 +56,8 @@ def main():
     p.add_argument("-species", type = str, default = "Chordata")
     p.add_argument("-massdata", type = str, help = "Path to initaal mass data. If None, mass is set to one in all cells.")
     p.add_argument("-z", type = int, help = "Seeding depth.", default=0)
+    p.add_argument("-mgtype", "--massgen_type", type = str, choices = ["from_file", "constant", "from_radius"])
+    p.add_argument("-mdtype", "--microbialdecaytype", type = str, default="mass", choices = ["mass", "area"])
     args = p.parse_args()
     run_simulation(**vars(args))
 

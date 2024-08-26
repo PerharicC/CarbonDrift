@@ -1,6 +1,9 @@
 import numpy as np
-from model.massdecay.gridrun import GridRun
-from model.massdecay.carbondrift import *
+from copy import copy
+import model.massdecay.gridrun as mcdgrid
+import model.areadecay.gridrun as acdgrid
+import model.massdecay.carbondrift as mcd
+import model.areadecay.carbondrift as acd
 from simulation.param_classifier import Parameters
 from opendrift.readers import reader_global_landmask
 from opendrift.readers import reader_netCDF_CF_generic
@@ -16,6 +19,7 @@ class PrepareSimulation:
 
     def __init__(self, simulation_type, **kwargs):
         move_to_ocean = kwargs.pop("oceanonly")
+        self.microbialdecaytype = kwargs["microbialdecaytype"]
         logger.debug("Classifying parameters.")
         self.p = Parameters(kwargs)
         logger.debug("Preparing readers.")
@@ -53,14 +57,24 @@ class PrepareSimulation:
         self.p.object_init["configure"] = self.config
         self.p.object_init["lon"] = self.seeder.lon
         self.p.object_init["lat"] = self.seeder.lat
-        self.obj = GridRun(**self.p.object_init)
+        self.p.object_init["m0"] = copy(self.seeder.mass)
+        if self.microbialdecaytype == "mass":
+            self.obj = mcdgrid.GridRun(**self.p.object_init)
+        elif self.microbialdecaytype == "area":
+            self.p.object_init["r0"] = self.seeder.r0
+            self.obj = acdgrid.GridRun(**self.p.object_init)
     
     def initialize_normal_run(self):
         params = self.p
         advection = params.object_init.pop("deactivate_horizontal_advection")
         fragmentation = params.object_init.pop("deactivate_fragmentation")
         time = params.object_init.pop("starttime")
-        self.obj = CarbonDrift(**params.object_init)
+        params.object_init["m0"] = copy(self.seeder.mass)
+        if self.microbialdecaytype == "mass":
+            self.obj = mcd.CarbonDrift(**params.object_init)
+        elif self.microbialdecaytype == "area":
+            params.object_init["r0"] = self.seeder.r0
+            self.obj = acd.CarbonDrift(**params.object_init)
 
         if advection:
             self.obj.deactivate_horizontal_advection()
