@@ -79,8 +79,6 @@ class CarbonDrift(OceanDrift):
             Normalizing depth factor for z_linear distribution (default 1000)
         distribution: str
             Name of the method used as the decay distribution
-        plot_distribution: bool
-            Plot the distribution (default False)
         max_ram: float
             The ram threshold in GiB, which when exceeded splits the simulation into two subtasks 
             (only possible using the DivideAndConquerCarbonDrift module) (default None)
@@ -97,27 +95,19 @@ class CarbonDrift(OceanDrift):
         self.threshold = kwargs.pop("threshold", 1)
         self.decay_stop = kwargs.pop("decay_stop", 0.)
         self.w0 = kwargs.pop("initial_velocity", -0.01)
-        m0 = kwargs.pop("mass", None)
-        depth_norm = kwargs.pop("depth_norm", 1000)
+        self.m0 = kwargs.pop("m0")
         distribution = kwargs.pop("distribution", "mass_sqrt")
-        plot_dist = kwargs.pop("plot_distribution", False)
         self.max_ram = kwargs.pop("max_ram", None)
         self.max_num = kwargs.pop("max_num", None)
         self.decay_type = kwargs.pop("decay_type", "linear")
         
         super(CarbonDrift, self).__init__(*args, **kwargs)
-        
-        if m0 is not None:
-            self.m0 = np.max(m0)
-        else:
-            self.m0 = self.elements.variables["mass"]["default"]
-        
-
-        self.mass_idx = list(vars(self.elements).keys()).index("mass") + 2 #Probably dont need this.
 
         #Initialize fragmentation decay distribution.
+        """
         dist = Decay_Functions(self.m0, depth_norm, self.mass_threshold, self.z_threshold, self.threshold)
-        self.func = dist.choose_distribution(distribution, plot_dist)(dist)
+        self.func = dist.choose_distribution(distribution)(dist)
+        """
 
         #Initialize DivideAndConquer algorithm splitting attributes.
         self.pause = False
@@ -191,7 +181,7 @@ class CarbonDrift(OceanDrift):
         return 0.140 * np.exp(0.145 * self.environment.sea_water_temperature) / (24 * 3600) #Return exponential decay.
     
     def vertical_velocity(self):
-        return self.w0 * (self.elements.mass / self.m0) ** (1 / 6)
+        return self.w0 * (self.elements.mass / self.m0[self.elements.ID - 1]) ** (1 / 6)
 
     def decay_check(self):
         
