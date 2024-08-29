@@ -33,53 +33,17 @@ class Decay_Functions:
         
         return lambda m, z : self.t * (self.z_linear()(z) + self.mass_sqrt()(m)) / (self.mt + self.zt)
 
-    def choose_distribution(self, method_name, plot = False):
+    def choose_distribution(self, method_name):
         if method_name == None:
             raise NameError("No decay distribution was given.")
-        if plot:
-            self.plot(method_name)
         if hasattr(Decay_Functions, method_name):
             return getattr(Decay_Functions, method_name)
         else:
             errormsg = " does not exist. Try:\n"
             method_names = [method_name for method_name in dir(Decay_Functions) if callable(getattr(Decay_Functions, method_name))]
             method_names.remove("choose_distribution")
-            method_names.remove("plot")
             for name in method_names:
                 if name[0] == "_":
                     continue
                 errormsg += name + "\n"
             raise NameError("Decay distribution:" + method_name + errormsg)
-
-    def plot(self, method_name):
-
-        """Plot the selected distribution."""
-
-        mass = np.linspace(0, self.m0, 100)
-        Z = np.linspace(-self.H, 0, 100)
-        if method_name == "mass_sqrt_z_linear":
-
-            for z in np.linspace(-self.H, 0, 10):
-                plt.plot(mass, self.mass_sqrt_z_linear()(mass, z), label = "z = {}".format(z))
-                plt.xlabel("mass")
-
-            plt.legend()
-            plt.show()
-            plt.close()
-            
-            for m in np.linspace(0, self.m0, 10):
-                plt.plot(Z, self.mass_sqrt_z_linear()(m, Z), label = "mass = {}".format(m))
-                plt.xlabel("z")
-            
-            plt.legend()
-            plt.show()
-            plt.close()
-        else:
-            if "mass" in method_name:
-                plt.plot(mass, getattr(Decay_Functions, method_name)(self)(mass, 1))
-                plt.xlabel("mass")
-            else:
-                plt.plot(Z, getattr(Decay_Functions, method_name)(self)(1, Z))
-                plt.xlabel("z")
-            plt.show()
-
