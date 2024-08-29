@@ -220,7 +220,7 @@ class Plot:
         -----------
         """
 
-        plt.close()
+        plt.close("all")
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
         
         logger.debug("Initialize colormap.")
@@ -244,7 +244,7 @@ class Plot:
         if self.diff: bad2 = self.clean_dataset(self.obj2)
         
         logger.debug("Start calculating mass at given depth.")
-        mass1, m0 = self.zone_crossing_event(self.obj, self.lons, self.lats, h, bad1, bad2)
+        mass1 = self.zone_crossing_event(self.obj, self.lons, self.lats, h, bad1, bad2)
 
         if self.clip and not self.diff:
             mass1 = self.clip_array(np.copy(mass1))
@@ -253,7 +253,7 @@ class Plot:
 
         if self.diff:
             logger.debug("Start calculating mass at given depth for file2.")
-            mass2, m02 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad1, bad2)
+            mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad1, bad2)
             logger.debug("Finished calculating mass at given depth for file2.")
 
             if self.abs:
@@ -270,29 +270,33 @@ class Plot:
         if not self.diff:
             sm = ax.contourf(self.lons, self.lats, mass1.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
-            cb.set_label(r"$m/m_0$")
+            if self.abs:
+                cb.set_label(r"$m\, [\mathrm{mg\,C / m^2 Y}]$")
+            else:
+                cb.set_label(r"$m/m_0$")
         else:
             cmap = self.shiftedColorMap(cmap, midpoint = mid, name='shifted')
             sm = ax.contourf(self.lons, self.lats, mass.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
             if self.abs:
-                cb.set_label(r"$\Delta m$")
+                cb.set_label(r"$\Delta m\, [\mathrm{mg\,C / m^2 Y}]$")
             else:
-                cb.set_label(r"$\Delta m/m$")
+                cb.set_label(r"$\Delta m/m_\mathrm{clim}$")
         
         if self.title is not None:
             ax.set_title(self.title, fontweight = self.fontweight)
 
-        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+        ax.add_feature(cartopy.feature.LAND, zorder=100, edgecolor='k', facecolor = "beige")
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--')
-        gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
-        gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
-        gl.xformatter = LONGITUDE_FORMATTER
-        gl.yformatter = LATITUDE_FORMATTER
-        ax.set_xticks([-180, -90, 0, 90, 180])
-        ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
-        ax.set_yticks([-90, -45, 0, 45, 90])
-        ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
+        # gl.xlocator = mticker.FixedLocator([-120, -60, 0, 60, 120])
+        # gl.ylocator = mticker.FixedLocator([-60, -30, 0, 30, 60])
+        # gl.xformatter = LONGITUDE_FORMATTER
+        # gl.yformatter = LATITUDE_FORMATTER
+        # ax.set_xticks([-120, -60, 0, 60, 120])
+        # ax.set_xticklabels([r"$-120^\circ$", r"$-60^\circ$", r"$0^\circ$", r"$60^\circ$", r"$120^\circ$"])
+        # ax.set_yticks([-60, -30, 0, 30, 60])
+        # ax.set_yticklabels([r"$-60^\circ$", r"$-30^\circ$", r"$0^\circ$", r"$30^\circ$", r"$60^\circ$"])
 
         plt.tight_layout()
 
@@ -301,6 +305,18 @@ class Plot:
             plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
         else:
             plt.show()
+
+    @staticmethod        
+    def interpolate(x, y, x0):
+        if np.any(x == x0):
+            idx2 = np.where(x == x0)[0][0]
+            return y[idx2], idx2
+        idx2 = np.where(x < x0)[0][0]
+        y1, y2 = y[idx2 - 1], y[idx2]
+        x1, x2 = x[idx2 - 1], x[idx2]
+        k = (y2 - y1) / (x2 - x1)
+        n = y2 - k * x2
+        return k * x0 + n, idx2
     
     def zone_crossing_event(self, obj:Open, lons, lats, depth, bad1, bad2):
         """Calculate particle properties when crossing a certain depth."""
@@ -321,61 +337,62 @@ class Plot:
         status = np.ma.MaskedArray(status.data, status.mask, float)
         status = np.ma.filled(status, np.nan)
 
-        # @jit(nopython = True)
-        def mass_sum(lons, lats, depth, z, mass, lon, lat, sfidx, bad1 = bad1, bad2 = bad2):
-            logger.debug("Start summing masses.")
-            mass_at_depth = np.zeros((len(lons), len(lats)))
-            m0 = 0
-            for i in range(mass.shape[1]):
+        return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, self.seafloor_idx, bad1, bad2)
 
-                #Remove bad particles.
-                if i in bad1 or i in bad2:
+    # @jit(nopython = True)
+    def mass_sum(self, lons, lats, depth, z, mass, lon, lat, status, sfidx, bad1, bad2):
+        logger.debug("Start summing masses.")
+        mass_at_depth = np.zeros((len(lons), len(lats)))
+        for i in range(mass.shape[1]):
+
+            #Remove bad particles.
+            if i in bad1 or i in bad2:
+                continue
+
+            drifter_trajectory = z[:, i]
+            drifter_mass = mass[:, i]
+            m0 = drifter_mass[0]
+
+            trajectory_nans = np.invert(np.isnan(drifter_trajectory))
+            
+            if type(depth) != str:
+                if np.min(drifter_trajectory[trajectory_nans])>depth:
                     continue
-
-                drifter_trajectory = z[:, i]
-                drifter_mass = mass[:, i]
-
-                trajectory_nans = np.invert(np.isnan(drifter_trajectory))
-
-                m0 += drifter_mass[0]
                 
-                if type(depth) != str:
-                    if np.min(drifter_trajectory[trajectory_nans])>depth:
-                        continue
-                    depth_idx = np.argmin(np.abs(drifter_trajectory[trajectory_nans] - depth))
+                m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
+            
+            else:
+                #Sea_floor.
+                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
+                # if len(bounce) > 0:
+                #     raise ValueError("Depth decreases.")
                 
+                s = status[:, i]
+                sea_floor = np.where(s == sfidx)[0]
+                if len(sea_floor) >0:
+                    depth_idx = sea_floor[0]
                 else:
-                    #Sea_floor.
-                    bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
-                    if len(bounce) > 0:
-                        raise ValueError("Depth decreases.")
-                    else:
-                        s = status[:, i]
-                        sea_floor = np.where(s == sfidx)[0]
-                        if len(sea_floor) >0:
-                            depth_idx = sea_floor[0]
-                        else:
-                            depth_idx = len(drifter_trajectory)-1
+                    depth_idx = len(drifter_trajectory)-1
+                m = drifter_mass[depth_idx]
 
 
-                if np.isnan(drifter_mass[depth_idx]) or drifter_mass[depth_idx] == 1:
-                    continue
+            if np.isnan(m):
+                continue
 
-                drifter_lon = lon[depth_idx, i]
-                drifter_lat = lat[depth_idx, i]
+            drifter_lon = lon[depth_idx, i]
+            drifter_lat = lat[depth_idx, i]
 
-                if np.isnan(drifter_lon) or np.isnan(drifter_lat):
-                    continue
-                
-                #Find closest position on grid.
-                lon_grid = np.argmin(np.abs(lons - drifter_lon))
-                lat_grid = np.argmin(np.abs(lats - drifter_lat))
-
-                mass_at_depth[lon_grid, lat_grid] = mass_at_depth[lon_grid, lat_grid] + drifter_mass[depth_idx]
-            logger.debug("Finish summing masses.")
-            return mass_at_depth, m0
-        
-        return mass_sum(lons, lats, depth, z, mass, lon, lat, self.seafloor_idx)
+            if np.isnan(drifter_lon) or np.isnan(drifter_lat):
+                continue
+            
+            #Find closest position on grid.
+            lon_grid = np.argmin(np.abs(lons - drifter_lon))
+            lat_grid = np.argmin(np.abs(lats - drifter_lat))
+            if not self.diff and not self.abs:
+                m/=m0
+            mass_at_depth[lon_grid, lat_grid] = mass_at_depth[lon_grid, lat_grid] + m
+        logger.debug("Finish summing masses.")
+        return mass_at_depth
     
     def create_timedelta_array(self, n):
         dt = datetime.strptime(str(self.time[1]),'%Y-%m-%d %H:%M:%S') - datetime.strptime(str(self.time[0]),'%Y-%m-%d %H:%M:%S')
@@ -418,7 +435,7 @@ class Plot:
 
             trajectory_nans = np.invert(np.isnan(drifter_trajectory))
             
-            if (drifter_trajectory[trajectory_nans]>0).any() or np.any(drifter_mass[1:] >= 1):
+            if (drifter_trajectory[trajectory_nans]>0).any() or np.any(drifter_mass[1:] >= drifter_mass[0]):
                 bad_trajectories.append(i)
             
             elif np.any(status[:, i] == self.ice_idx): #Ice
