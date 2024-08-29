@@ -29,7 +29,7 @@ def configure_locations(s:str):
     return proper_format_locs
 
 def main():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument("method", type = str)
     p.add_argument("-f1", "--file1", type = str, required=True)
     p.add_argument("-f2", "--file2", type = str)
