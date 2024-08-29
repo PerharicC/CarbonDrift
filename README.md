@@ -1,6 +1,14 @@
 # CarbonDrift
 Lagrangian 3d  tracking of carbon particles
 
+## Download
+
+Open the terminal and clone CarbonDrift.
+
+```console
+~$ git clone <path>
+```
+
 ## Run a simulation
 
 Run the following comand in the root directory
@@ -11,12 +19,36 @@ Run the following comand in the root directory
 
 For further information on other arguments use header in terminal.
 
+**Note:** To avoid long terminal inputs, one can save paramers, which rarely change, to a .txt file of format
+
+```
+-tmp
+<temperatuure netcdf filepath>
+-b
+<bathimetry netcdf filepath>
+-s
+2010-01-01-0
+```
+
+The simulation can then be run as:
+
+```console
+~/CarbonDrift$ python -m simulation.run @parameters.txt -o <out netcdf filepath> 
+```
+where one can now add the changing parameters next to the .txt file.
+
 ## Plotting a simulation
 
 Now that we have successfully ran and saved a simulation to a netCDF file, we can look at how to plot the results. In the root directory type in the terminal
 
 ```console
 ~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> -f1 <file1 location, e.g. clim.nc> -f2 <file2 location, e.g. MHW.nc (not necessary if not plotting difference)> -lons <lon grid txt filepath (created in simulation)> -lats <lat grid txt filepath (created in simulation)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
+```
+
+Similarly one can save ceertain/all paramaers to a .txt file and in a terminal simply run the command
+
+```console
+~/CarbonDrift$ python -m plotting.plot_run @parameters.txt
 ```
 
 ### Plot locations of specified drifters
