@@ -56,9 +56,16 @@ def main():
                    help = "Specific plotting locations - format lon1:lat1,lon2:lat2...")
     p.add_argument("-p1", "--prop1", type = str, help="Property to plot on x axis.")
     p.add_argument("-p2", "--prop2", type = str, help="Property to plot on y axis.")
+    p.add_argument("-cblabel", "--colorbarlabel", type = str)
+    p.add_argument("-xlabel", type = str)
+    p.add_argument("-ylabel", type = str)
+    p.add_argument("-xlim", type = str, help = "Xlim - format xmin:xmax")
+    p.add_argument("-ylim", type = str, help = "Ylim - format ymin:ymax")
+    p.add_argument("-lw", "--linewidth", type = float)
+    p.add_argument("-legend", type = str, help="Legend - format label1, label2")
 
     args = p.parse_args()
-    plot(**vars(args))
+    return plot(**vars(args))
 
 def plot(**kwargs):
     plotmethod = kwargs.pop("method")
@@ -76,8 +83,8 @@ def plot(**kwargs):
         kwargs["locations"] = configure_locations(kwargs["locations"])
 
     p = Plot(**kwargs)
-    getattr(p, plotmethod)()
+    return getattr(p, plotmethod)()
 
 
 if __name__ == '__main__':
-    main()
+    print(main())
