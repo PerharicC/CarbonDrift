@@ -25,8 +25,8 @@ def save_params(path, params):
     from copy import copy
     p = copy(params)
     p["TIME OF SIMULATION RUN"] = time.asctime()
-    
-    with open(path, "a") as file:
+    new_path = path.split(".")[0]+".json"
+    with open(new_path, "w") as file:
         json.dump(p, file, indent=4, default=str)
 
 def main():
@@ -52,24 +52,10 @@ def main():
                    help = "Time step of simulation - format H:M:S" )
     p.add_argument("-d", "--decaytype", type = str, default="linear", choices=["linear", "exp"])
     p.add_argument("-log", "--loglevel", default = 0, type = int)
-    p.add_argument("-skip", default = 1, type = int, help = "Skip every n cell in seeding.")
-    p.add_argument("-seed", type = str, choices = ["line", "rectangle"], default = "rectangle",
-                   help = "Type of seeding (rectangle == grid).")
-    p.add_argument("-lon", required=False, type = str,
-                   help = "Longitude seeding - format min:max:seeednum. Use m for minus sign. \
-                    Only specify, when -seed is set to line.")
-    p.add_argument("-lat", required=False, type = str, help = "Latitude seeding - format min:max:seeednum. Use m for minus sign. \
-                    Only specify, when -seed is set to line.")
     p.add_argument("-oceanonly", action="store_true")
-    p.add_argument("-phylum", type = str, default = "Chordata")
-    p.add_argument("-massdata", type = str, help = "Path to initial mass data. If None, mass is set to one in all cells.")
-    p.add_argument("-z", type = int, help = "Seeding depth.", default=0)
-    p.add_argument("-mgtype", "--massgen_type", type = str, choices = ["from_file", "constant", "random_genus"],
-                   help = "Type of mass generation. If -mdtype is set to mass, default is from_file, \
-                    if -mdtype is area, deafult is random_genus. If -massdata is None, default is constant.")
+    p.add_argument("-sdata", "--seeddata", type = str, help = "Path to initial seed data.")
     p.add_argument("-mdtype", "--microbialdecaytype", type = str, default="mass", choices = ["mass", "area"])
-    p.add_argument("-mwgt", "--weightspath", type = str)
-    p.add_argument("-bgrid", "--biomegridpath", type = str)
+    p.add_argument("-wtype", "--vertical_velocity_type", type = str, choices = ["constant", "variable"], default = "variable")
     args = p.parse_args()
     run_simulation(**vars(args))
 
@@ -78,7 +64,7 @@ def run_simulation(**kwargs):
     logger = log.LOGGER
 
     logger.info("Saving parameters.")
-    save_params("saved_params.json", kwargs)
+    save_params(kwargs["outfile"], kwargs)
 
     logger.info("Preparing Simulation.")
     simulation = PrepareSimulation(**kwargs)

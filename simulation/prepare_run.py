@@ -19,15 +19,16 @@ class PrepareSimulation:
 
     def __init__(self, simulation_type, **kwargs):
         move_to_ocean = kwargs.pop("oceanonly")
-        self.microbialdecaytype = kwargs["microbialdecaytype"]
+        self.microbialdecaytype = kwargs.pop("microbialdecaytype")
+        seeddata = kwargs.pop("seeddata")
         logger.debug("Classifying parameters.")
         self.p = Parameters(kwargs)
+        logger.debug("Defining initial position of particles.")
+        self.seeder = SeedFromFile(seeddata)
         logger.debug("Preparing readers.")
         self.readers = self.prepare_readers(**self.p.readers)
         logger.debug("Setting config.")
         self.config = {'drift:advection_scheme':"runge-kutta", 'general:use_auto_landmask': False, 'seed:ocean_only':move_to_ocean}
-        logger.debug("Defining initial position of particles.")
-        self.seeder = Seed(**self.p.seeding)
         logger.debug("Creating CD object instance.")
         if simulation_type == "normal":
             self.initialize_normal_run()
@@ -41,6 +42,10 @@ class PrepareSimulation:
         bat = reader_netCDF_CF_generic.Reader(bathymetry, standard_name_mapping={"topo":"depth"})
         readers.append(bat)
         tmp = reader_netCDF_CF_generic.Reader(temperature)
+        if self.microbialdecaytype == "area":
+            sea_surface_temperature = tmp.get_variables_interpolated(["sea_water_temperature"], "sea_water_temperature", -1, time = self.p.object_init["starttime"],
+                                                lon = self.seeder.lon, lat = self.seeder.lat, z = -0.5)[0]["sea_water_temperature"].data
+            self.p.object_init["sea_surface_temperature"] = sea_surface_temperature
         tmp.verticalbuffer = temperaturebuffer
         tmp.always_valid = True
         readers.append(tmp)
@@ -85,4 +90,9 @@ class PrepareSimulation:
         for key, value in self.config.items():
             self.obj.set_config(key, value)
         
-        self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z, mass = self.seeder.mass, time=time)
+        if self.microbialdecaytype == "mass":
+            self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z,
+                                   mass = self.seeder.mass, time=time)
+        elif self.microbialdecaytype == "area":
+            self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z, mass = self.seeder.mass,
+                                   jelly_radius = self.seeder.r0, time=time)

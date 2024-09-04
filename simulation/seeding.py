@@ -3,12 +3,14 @@ import numpy as np
 from global_land_mask import globe
 import os
 import pickle
+import pandas as pd
 
 
 def load_data(path):
     with open(path, "rb") as f:
         data = pickle.load(f)
     return data
+
 
 def generate_mass_from_file(lon, lat, phylum:str, path:str): #Mass in units mg/m*2 Y
     data = load_data(path)
@@ -103,6 +105,28 @@ def get_radius(mass, genus): #Units of mass in mg
 
     return L / 2 / 10 ** 3 #Return half of diameter in meters.
 
+def get_CW_WW_conversion(phylum, genus):
+    if phylum == "Chordata":
+        return 0.58 / 100
+    elif phylum == "Ctenophora":
+        return 0.17 / 100
+    else:
+        if genus in ['Craspedacusta', 'Clytia', 'Tiaropsis', 'Eutima', 'Catablema',
+                   'Calycopsis', 'Halicreas', 'Octophialucium', 'Cosmetira',
+                   'Aegina', 'Mitrocomella', 'Pegantha', 'Cunina',
+                   'Cunina', 'Polyorchis', 'Calycopsis', 'Larsonia', 'Liriope',
+                   'Eirene', 'Mitrocomella', 'Cyclocana', 'Laodicia', 'Eutonina',
+                   'Melicertum', 'Cunina', 'Sarsia', 'Pandea', 'Bougainvillia', 'Sarsia',
+                   'Dipleurosoma', 'Dichotomia', 'Aglaura', 'Amphinemum', 'Sarsia', 'Euphysa',
+                   'Amphinema', 'Lizzia', 'Bougainvillea', 'Solmaris', 'Bougainvillea',
+                   'Hybodcon', 'Rathkea', 'Solmaris', 'Nemopsis', 'Gossea', 'Eutima',
+                   'Bougainvillea', 'Geryonia', 'Zygocanna', 'Aequorea', 'Tima', 'Solmissus',
+                   'Ptychogena', 'Tima', 'Aequorea', 'Aequorea', 'Aequorea', 'Staurophora',
+                   'Rhacostoma', 'Chiropsalmus', 'Eperetmus']:
+            return 0.51 / 100
+        else:
+            return 0.47 / 100
+
 def generate_mass_from_random_genus(lon, lat, phylum:str, path:str, weights_path:str, biomegridpath):
     lons = np.arange(-180, 180, 1)
     lats = np.arange(-90, 90, 1)
@@ -119,10 +143,11 @@ def generate_mass_from_random_genus(lon, lat, phylum:str, path:str, weights_path
         genus = np.random.choice(W[0], p = W[1])
         mass = m1[phylum][str(biome)] #Assign geometric mean mass of given biome.
         
-        M.append(mass * 8) # Factor 8 to account for C -> DW conversion
+        M.append(mass * 10 ** (-6) / get_CW_WW_conversion(phylum, genus)) # Factor to account for C -> WW conversion and mg -> kg.
         r.append(get_radius(mass, genus))
     
     return np.asarray(M), np.asarray(r)
+
 
 class RectangleSeed:
 
@@ -147,9 +172,9 @@ class RectangleSeed:
         
         # self.N = len(lons) * len(lats)
         
-        if not os.path.isfile("lons{}.txt".format(self.s)):
-            np.savetxt("lons{}.txt".format(self.s), lons)
-            np.savetxt("lats{}.txt".format(self.s), lats)
+        # if not os.path.isfile("lons{}.txt".format(self.s)):
+        #     np.savetxt("lons{}.txt".format(self.s), lons)
+        #     np.savetxt("lats{}.txt".format(self.s), lats)
 
         lons, lats = np.meshgrid(lons, lats)
         
@@ -165,38 +190,10 @@ class RectangleSeed:
             
         return lon, lat
 
-class LineSeed:
-
-    def __init__(self, lon, lat):
-        lons = lon.split(":")
-        lats= lat.split(":")
-        for i in range(3):
-            if "m" in lons[i]:
-                lons[i] = -float(lons[i].strip("m"))
-            else:
-                lons[i] = float(lons[i])
-            if "m" in lats[i]:
-                lats[i] = -float(lats[i].strip("m"))
-            else:
-                lats[i] = float(lats[i])
-        lonmin, lonmax, lonnum = lons
-        latmin, latmax, latnum = lats
-        lonnum = int(lonnum)
-        latnum = int(latnum)
-        if lonnum != latnum:
-            num = min(lonnum, latnum)
-            raise Warning("Seeding lonnum and latnum are different, taking the smaller value.")
-        else:
-            num = lonnum
-        
-        self.lons = np.linspace(lonmin, lonmax, num)
-        self.lats = np.linspace(latmin, latmax, num)
-
 class Seed:
 
-    def __init__(self, seedtype, phylum, massdata, ncfile = None, skip = 1,
-                 lon = None, lat = None, z = 0, massgen_type = None, microbialdecaytype = "mass",
-                 weightspath = None, biomegridpath = None):
+    def __init__(self, seedtype, seeddata = None, ncfile = None, skip = 1, microbialdecaytype = "mass",
+                 phylum = None, lon = None, lat = None, z = 0, weightspath = None, biomegridpath = None, outfile = None):
         
         if seedtype == "rectangle":
             if ncfile is None:
@@ -208,24 +205,35 @@ class Seed:
             if lon is None or lat is None:
                 raise ValueError("Missing lon, lat values for seeding.")
             
-            o = LineSeed(lon, lat)
-            self.lon, self.lat = o.lons, o.lats
+            self.lon, self.lat = lon, lat
         
-        if massgen_type is None:
-            if microbialdecaytype == "mass":
-                massgen_type = "from_file"
-            elif microbialdecaytype =="area":
-                massgen_type = "random_genus"
-        
-        if massgen_type == "from_file":
-            self.mass = generate_mass_from_file(self.lon, self.lat, phylum, massdata)
+        if seeddata is None:
+            self.mass = np.ones(len(self.lon))
+            self.r0 = np.ones(len(self.lon))
+        elif microbialdecaytype == "mass":
+            self.mass = generate_mass_from_file(self.lon, self.lat, phylum, seeddata)
             self.r0 = None
-        elif massgen_type == "random_genus":
-            mass, r = generate_mass_from_random_genus(self.lon, self.lat, phylum, massdata, weightspath, biomegridpath)
+        else:
+            mass, r = generate_mass_from_random_genus(self.lon, self.lat, phylum, seeddata, weightspath, biomegridpath)
             self.mass = mass
             self.r0 = r
-        else:
-            self.mass = np.ones(len(self.lon))
-            self.r0 = None
         
         self.z = -np.abs(z)
+        if outfile is not None:
+            self.save_seed(outfile)
+    
+    def save_seed(self, outfile):
+        data = {}
+        data["lon"] = self.lon
+        data["lat"] = self.lat
+        data["mass"] = self.mass
+        data["r0"] = self.r0
+        data["z"] = self.z
+        df = pd.DataFrame(data)
+        df.to_pickle(outfile)
+
+class SeedFromFile:
+    def __init__(self, file):
+        data = load_data(file)
+        for keys, values in data.items():
+            setattr(self, keys, values.values)
