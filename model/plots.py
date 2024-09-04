@@ -49,11 +49,11 @@ def get_status_info(data):
     status = data.variables["status"]
     meanings = status.flag_meanings.split()
     values = status.flag_values
-    ice = "Ice"
+    # ice = "Ice"
     seafloor = "Reached_Sea_Floor"
-    ice_idx = meanings.index(ice)
+    # ice_idx = meanings.index(ice)
     seafloor_idx = meanings.index(seafloor)
-    return values[ice_idx], values[seafloor_idx]
+    return values[seafloor_idx]#, values[ice_idx] 
 
 class Plot:
 
@@ -62,7 +62,9 @@ class Plot:
                  fontsize = 17, title = None, depth = -200,
                  diff = True, absolute = False, fontweight = "normal",
                  outfile = None, shrink = 1, clip = None, locations = None,
-                 loclines = None, prop1 = None, prop2 = None):
+                 loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
+                 xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
+                 legend = None):
 
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -109,8 +111,8 @@ class Plot:
 
         logger.debug("Decrypting status numberings.")
 
-        ice, seafloor = get_status_info(self.obj.data)
-        self.ice_idx = ice
+        seafloor = get_status_info(self.obj.data)
+        # self.ice_idx = ice
         self.seafloor_idx = seafloor
 
         logger.debug("Setting up clipping.")
@@ -129,6 +131,45 @@ class Plot:
 
         self.prop1 = prop1
         self.prop2 = prop2
+        self.cb_units = colorbarlabel
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        if xlim is not None:
+            x1, x2 = xlim.split(":")
+            if "m" in x1:
+                x1 = -float(x1.strip("m"))
+            else:
+                x1 = float(x1)
+            if "m" in x2:
+                x2 = -float(x2.strip("m"))
+            else:
+                x2 = float(x2)
+            self.xlim = [x1, x2]
+        else:
+            self.xlim = None
+        
+        if ylim is not None:
+            y1, y2 = ylim.split(":")
+            if "m" in y1:
+                y1 = -float(y1.strip("m"))
+            else:
+                y1 = float(y1)
+            if "m" in y2:
+                y2 = -float(y2.strip("m"))
+            else:
+                y2 = float(y2)
+            self.ylim = [y1, y2]
+        else:
+            self.ylim = None
+
+        self.lw = linewidth
+
+        if legend is None:
+            self.legend = False
+        else:
+            self.label1, self.label2 = legend.split(",")
+            self.legend = True
+
     
     @staticmethod
     def get_cmap(x, map):
@@ -270,19 +311,12 @@ class Plot:
         if not self.diff:
             sm = ax.contourf(self.lons, self.lats, mass1.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
-            if self.abs:
-                cb.set_label(r"$m\, [\mathrm{mg\,C / m^2 Y}]$")
-            else:
-                cb.set_label(r"$m/m_0$")
         else:
             cmap = self.shiftedColorMap(cmap, midpoint = mid, name='shifted')
             sm = ax.contourf(self.lons, self.lats, mass.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
-            if self.abs:
-                cb.set_label(r"$\Delta m\, [\mathrm{mg\,C / m^2 Y}]$")
-            else:
-                cb.set_label(r"$\Delta m/m_\mathrm{clim}$")
-        
+        if self.cb_units is not None:
+            cb.set_label(f"{self.cb_units}")
         if self.title is not None:
             ax.set_title(self.title, fontweight = self.fontweight)
 
@@ -358,7 +392,7 @@ class Plot:
             if type(depth) != str:
                 if np.min(drifter_trajectory[trajectory_nans])>depth:
                     continue
-                
+
                 m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
             
             else:
@@ -435,11 +469,11 @@ class Plot:
 
             trajectory_nans = np.invert(np.isnan(drifter_trajectory))
             
-            if (drifter_trajectory[trajectory_nans]>0).any() or np.any(drifter_mass[1:] >= drifter_mass[0]):
+            if (drifter_trajectory[trajectory_nans]>drifter_trajectory[0]).any() or np.any(drifter_mass[1:] >= drifter_mass[0]):
                 bad_trajectories.append(i)
             
-            elif np.any(status[:, i] == self.ice_idx): #Ice
-                bad_trajectories.append(i)
+            # elif np.any(status[:, i] == self.ice_idx): #Ice
+            #     bad_trajectories.append(i)
         return bad_trajectories
     
     def current_strength(self):
@@ -623,7 +657,7 @@ class Plot:
         ax.add_feature(cartopy.feature.LAND, facecolor="gray",edgecolor='black', zorder = 1)
         ax.coastlines(zorder = 2)
         ax.set_xticks(xticks)
-        ax.set_xticklabels(r"${}^\circ $".format(i) for i in xticks)
+        ax.set_xticklabels([r"${}^\circ $".format(i) for i in xticks] , rotation = 30)
         ax.set_yticks(yticks)
         ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
         
@@ -640,11 +674,11 @@ class Plot:
     def drifter_properties(self):
         import matplotlib.style as style
         
-        style.use('seaborn-v0_8-bright')
+        style.use('seaborn-v0_8-notebook')
         
         plt.close()
 
-        self.fig, self.ax = plt.subplots(1, 1)
+        self.fig, self.ax = plt.subplots(1, 1, figsize = self.figsize)
 
         if self.loc is None:
             raise AttributeError("Locations are not specified.")
@@ -731,16 +765,27 @@ class Plot:
                 Y1 = y1[:, idx1]
                 Y2 = y2[:, idx2]
             # color = next(self.ax._get_lines.prop_cycler)['color']
-            plot1 = self.ax.plot(X1, Y1, label = "L" + str(k) + " clim")
-            color = plot1[0].get_color()
-            self.ax.plot(X2, Y2, linestyle = "dashed", label = "L" + str(k) + " MHW", color = color)
+            line1, = self.ax.plot(X1, Y1, lw = self.lw)
+            # color = line1[0].get_color()
+            line2,= self.ax.plot(X2, Y2, lw = self.lw)#, linestyle = "dashed")#, color = color)
             k += 1
         
-        self.ax.set_xlabel(self.prop1 + " " + unitsx)
-        self.ax.set_ylabel(self.prop2 + " " + unitsy)
+        if self.xlabel is None:
+            self.ax.set_xlabel(self.prop1 + " " + unitsx)
+        else:
+            self.ax.set_xlabel(f"{self.xlabel}")
+        if self.ylabel is None:
+            self.ax.set_ylabel(self.prop2 + " " + unitsy)
+        else:
+            self.ax.set_ylabel(f"{self.ylabel}")
 
-        self.ax.legend()
+        if self.title is not None:
+            self.ax.set_title(self.title)
         
+        if self.legend: self.ax.legend([line1, line2], [f"{self.label1}", f"{self.label2}"])
+        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
+        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
+        plt.grid()
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -749,4 +794,7 @@ class Plot:
         else:
             plt.show()
 
-              
+    def get_mass_sum_at_depth(self):
+        M = self.zone_crossing_event(self.obj, self.lons, self.lats, self.depth, self.clean_dataset(self.obj), [])
+        x = len(np.where(M > 0)[0])
+        return np.sum(M[np.invert(np.isnan(M))]) / x
