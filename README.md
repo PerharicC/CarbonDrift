@@ -1,5 +1,5 @@
 # CarbonDrift
-Lagrangian 3d  tracking of carbon particles
+Lagrangian 3d tracking of carbon particles
 
 ## Download
 
@@ -10,8 +10,15 @@ Open the terminal and clone CarbonDrift.
 ```
 
 ## Run a simulation
+### Standard opendrift simulation
+To run a simulation one can follow the standard procedureof any opendrift submodule:
+1. Create an object instance.
+2. Add readers, configures etc. 
+3. Seed elements at desired locations, depths, with appropriate masses etc.
+4. Run and save the simulation by calling the run() method.
 
-Run the following comand in the root directory
+### Automized method
+To run a CarbonDrift simulation from the terminal one can simply run the following comand in the root directory
 
 ```console
 ~/CarbonDrift$ python -m simulation.run -tmp <temperature netcdf filepath> -b <bathimetry netcdf filepath> -s <starttime> -o <out netcdf filepath> 
@@ -19,7 +26,7 @@ Run the following comand in the root directory
 
 For further information on other arguments use header in terminal.
 
-**Note:** To avoid long terminal inputs, one can save paramers, which rarely change, to a .txt file of format
+**Note:** To avoid long terminal inputs, one can save parameters to a parameters.txt file of format
 
 ```
 -tmp
@@ -28,6 +35,8 @@ For further information on other arguments use header in terminal.
 <bathimetry netcdf filepath>
 -s
 2010-01-01-0
+--steps
+420
 ```
 
 The simulation can then be run as:
@@ -35,71 +44,103 @@ The simulation can then be run as:
 ```console
 ~/CarbonDrift$ python -m simulation.run @parameters.txt -o <out netcdf filepath> 
 ```
-where one can now add the changing parameters next to the .txt file.
+
 
 ## Plotting a simulation
 
-Now that we have successfully ran and saved a simulation to a netCDF file, we can look at how to plot the results. In the root directory type in the terminal
+CarbonDrift provides some built in plotting methods in the model.plots submodule. To run any one of these methods open the terminal in the root directory and type
 
 ```console
-~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> -f1 <file1 location, e.g. clim.nc> -f2 <file2 location, e.g. MHW.nc (not necessary if not plotting difference)> -lons <lon grid txt filepath (created in simulation)> -lats <lat grid txt filepath (created in simulation)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
+~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> -f1 <file1path> -f2 <file2path (not necessary if not plotting difference)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
 ```
 
-Similarly one can save ceertain/all paramaers to a .txt file and in a terminal simply run the command
+Similarly one can save certain/all parameters to a .txt file and in a terminal simply run the command
 
 ```console
 ~/CarbonDrift$ python -m plotting.plot_run @parameters.txt
 ```
+### Plotting examples
+In this section we will show some plotting methods and their outputs.
+1. **Plot locations of specific drifters**
 
-### Plot locations of specified drifters
+Save the following parameters to a .txt file:
 
-```console
-~/CarbonDrift$ python -m plotting.plot_run drifter_locations -f1 <file1 location, e.g. clim.nc> -loc <locations in format lon1:lat1,lon2:lat2 etc> -o <outfile.pdf filepath> -lines
+```
+drifter_locations
+-f1
+<simualtion filepath>
+-loc
+m48:30,5:0
+-t
+Locations_of_drifters
+-legend
+$L_1$,$L_2$
+-o
+./images/locations.png
 ```
 
-Add argument lines only if you would like to display gridlines to the drifter locations.
-
-**Example:**
+Next run the following command in the terminal
 
 ```console
-~/CarbonDrift$ python -m plotting.plot_run drifter_locations -f1 <file1.nc> -loc m135:0,20:m45,90:m20 -lines
+~/CarbonDrift$ python -m plotting.plot_run @location_params.txt
 ```
-
-**Output:**
+And the output will be:
 
 ![](/images/locations.png)
 
-### Plot some drifter properties
+2. **Plot some drifter properties**
 
-To make a 2D plot of some property vs another property fo two different simulations type in terminal:
+To make a 2D plot of some property vs another property for up to four different simulations the parameter file should contain the following arguments:
 
-```console
-~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1 location, e.g. clim.nc> -f2<file2 location, e.g. MHW.nc> -loc <locations in format lon1:lat1,lon2:lat2 etc> -o <outfile.pdf filepath> -p1 <property on x axis> -p2 <property on y axis>
+```
+drifter_properties
+-f1
+<file1 path>
+-f2
+<file2 path>
+-f3
+<file3 path>
+-f4
+<file4 path>
+-fs
+8:10
+-loc
+m48:30
+-p1
+mass
+-p2
+z
+-lines
+-t
+LIN_decay,_z0_=_-100_m,_w0_=_500_m/d
+-xlabel
+$m/m_0$
+-ylabel
+$z\,\mathrm{[m]}$
+-lw
+3
+-xlim
+0:1
+-ylim
+m4500:0
+-legend
+$\frac{\mathrm{d}m}{\mathrm{d}t}=-km\text{  - constant speed}$,$\frac{\mathrm{d}m}{\mathrm{d}t}=-kS\text{  - constant speed}$,$\frac{\mathrm{d}m}{\mathrm{d}t}=-km\text{  - variable speed}$,$\frac{\mathrm{d}m}{\mathrm{d}t}=-kS\text{  - variable speed}$ 
+-o
+./images/z_mass.png
 ```
 
-One can choose between properties
-
-
-```python
-["time", "mass", "z", "temperature", "x_sea_water_velocity", "y_sea_water_velocity"]
-```
-
-**Example1:**
-
-```console
-~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1.nc> -f2<file2.nc> -loc m135:0,20:m45,90:m20 -p1 time -p2 mass
-```
-
-**Output1:**
-
-![](/images/mass_t.png)
-
-**Example2:**
-
-```console
-~/CarbonDrift$ python -m plotting.plot_run drifter_properties -f1 <file1.nc> -f2<file2.nc> -loc m135:0,20:m45,90:m20 -p1 mass -p2 z
-```
-
-**Output2:**
+The output should look something like this:
 
 ![](/images/z_mass.png)
+
+To plot other properties one can choose between
+
+```python
+["time", "mass", "z", "sea_water_temperature", "x_sea_water_velocity", "y_sea_water_velocity"]
+```
+
+3. **Cartopy map of mass at given depth**
+
+To plot the mass of each grid cell at a given depth the following parameters should be provided:
+
+**WORK IN PROGRESS**

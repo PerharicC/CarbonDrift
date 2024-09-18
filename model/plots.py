@@ -136,10 +136,10 @@ class Plot:
             self.clip = True
             self.Vmin, self.Vmax = [float(i.replace("m", "-")) for i in clip.split(":")]
 
-        if loclines is None:
-            self.loclines = False
-        else:
-            self.loclines = loclines
+        # if loclines is None:
+        #     self.loclines = False
+        # else:
+        #     self.loclines = loclines
         
         self.loc = locations
 
@@ -641,8 +641,8 @@ class Plot:
         lat = self.obj.get_property("lat")
         lat = np.ma.filled(lat, np.nan)
 
-        xticks = []
-        yticks = []
+        # xticks = []
+        # yticks = []
         k = 1
 
         for i, j in self.loc:
@@ -659,23 +659,25 @@ class Plot:
                 logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
                 continue
             
-            ax.plot(lon[0, idx], lat[0, idx], "o", markersize = 10, label = "L" + str(k))
-            if self.loclines:
-                ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
-                ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
-            xticks.append(lon[0, idx])
-            yticks.append(lat[0, idx])
+            ax.plot(lon[0, idx], lat[0, idx], "o", markersize = 10, label = self.labels[k-1] if self.legend else None)
+            # if self.loclines:
+            #     ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
+            #     ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
+            # xticks.append(lon[0, idx])
+            # yticks.append(lat[0, idx])
             k += 1
         
         ax.set_global()
         ax.add_feature(cartopy.feature.LAND, facecolor="gray",edgecolor='black', zorder = 1)
         ax.coastlines(zorder = 2)
-        ax.set_xticks(xticks)
-        ax.set_xticklabels([r"${}^\circ $".format(i) for i in xticks] , rotation = 30)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
-        
-        ax.legend()
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+        # ax.set_xticks(xticks)
+        # ax.set_xticklabels([r"${}^\circ $".format(i) for i in xticks] , rotation = 30)
+        # ax.set_yticks(yticks)
+        # ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
+        if self.legend:
+            ax.legend()
 
         plt.tight_layout()
 
