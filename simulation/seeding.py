@@ -4,6 +4,8 @@ from global_land_mask import globe
 import os
 import pickle
 import pandas as pd
+import json
+from opendrift.readers import reader_global_landmask
 
 
 def load_data(path):
@@ -11,6 +13,167 @@ def load_data(path):
         data = pickle.load(f)
     return data
 
+def load_json_data(file):
+    with open(file, "r") as f:
+        data = json.load(f)
+    return data
+
+def seed_like_Luo(bathymetrypath, lon, lat, phylum, biomegridpath, initialmassdata, poctype):
+    bmt = Dataset(bathymetrypath)
+    biomes = np.loadtxt(biomegridpath)
+    biome_name_map = ["HCSS", "LC", "HCPS", "COAST"]
+    biome_N_count = [0, 0, 0, 0]
+    for phi, lam in zip(lat, lon):
+        i = np.where(bmt["lat"][:] == phi)[0][0]
+        j = np.where(bmt["lon"][:] == lam)[0][0]
+        biome_N_count[int(biomes[i, j])]+=1
+    z = []
+    m = []
+    biome_seed = []
+    for phi, lam in zip(lat, lon):
+        i = np.where(bmt["lat"][:] == phi)[0][0]
+        j = np.where(bmt["lon"][:] == lam)[0][0]
+        depth = np.abs(bmt["topo"][i, j])
+        b = int(biomes[i, j])
+        biome_seed.append(b)
+        biome = biome_name_map[b]
+        m.append(initialmassdata[phylum.lower()][poctype][biome] / biome_N_count[b])
+        if depth < 30:
+            z.append(0)
+        elif depth < 60:
+            if phylum.lower() == "chordata":
+                z.append(-25)
+            else:
+                z.append(-10)
+        else:
+            if phylum.lower() == "chordata":
+                z.append(-50)
+            else:
+                z.append(-20)
+    return np.asarray(m), np.asarray(z), np.asarray(biome_seed, dtype = np.int32)
+
+class RectangleSeed:
+
+    def __init__(self, skip = 1):
+        self.lat = np.arange(-90, 90, 1)
+        self.lon = np.arange(-180, 180, 1)
+        self.s = skip
+        
+    
+    def grid(self):
+        if self.s > 1:
+            latmin, latmax = np.min(self.lat), np.max(self.lat)
+            lonmin, lonmax = np.min(self.lon), np.max(self.lon)
+
+            lons = np.linspace(lonmin, lonmax, len(self.lon) // self.s)
+            lats = np.linspace(latmin, latmax, len(self.lat) // self.s)
+        elif self.s == 1:
+            lons, lats = self.lon, self.lat
+        else:
+            raise ValueError("Paramater skip must be >=1.")
+        
+        # self.N = len(lons) * len(lats)
+        
+        # if not os.path.isfile("lons{}.txt".format(self.s)):
+        #     np.savetxt("lons{}.txt".format(self.s), lons)
+        #     np.savetxt("lats{}.txt".format(self.s), lats)
+        # lats, lons = np.meshgrid(lats, lons)
+        return lons, lats
+    @staticmethod
+    def mask_grid(lons, lats, bathymetrypath, temperaturepath):
+        depth = Dataset(bathymetrypath)["topo"][:]
+        tmp = Dataset(temperaturepath)["thetao"][0, :, :, :]
+        lon,lat = [], []
+        lm = reader_global_landmask.Reader()
+        # land = lm.get_variables("land_binary_mask", y =lats, x = lons)["land_binary_mask"]
+        for i in range(len(lats)):
+            for j in range(len(lons)):
+                land = lm.get_variables("land_binary_mask", y =np.asarray([lats[i]]), x =np.asarray([lons[j]]))["land_binary_mask"]
+                if not land:
+                    if depth[i, j] > 0:
+                        continue
+                    # if tmp.mask[0, i, j]:
+                    #     continue
+                    # if np.any(tmp.data[:11, i, j] <= 0):
+                    #     continue
+                    lon.append(lons[j])
+                    lat.append(lats[i])
+            
+        return lon, lat
+
+class Seed:
+
+    def __init__(self, seedtype, seeddata = None, ncfile = None, skip = 1, bathymetrypath = None, poctype = None,
+                 phylum = None, lon = None, lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None):
+        
+        if seedtype == "rectangle":
+            if ncfile is None:
+                raise NameError("Missing netCDF file for seeding.")
+            
+            o = RectangleSeed(skip)
+            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, ncfile)
+        elif seedtype == "line":
+            if lon is None or lat is None:
+                raise ValueError("Missing lon, lat values for seeding.")
+            
+            self.lon, self.lat = lon, lat
+        
+        if z is None:
+            self.mass, self.z, self.biome = seed_like_Luo(bathymetrypath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
+        else:
+            self.biome = None
+            self.mass = np.ones(len(self.lon))
+            self.z = z
+        
+        
+        if seeddata is None:
+            # self.mass = np.ones(len(self.lon))
+            self.r0 = np.ones(len(self.lon))
+        # elif microbialdecaytype == "mass":
+        #     self.mass = generate_mass_from_file(self.lon, self.lat, phylum, seeddata)
+        #     self.r0 = None
+        # else:
+        #     mass, r = generate_mass_from_random_genus(self.lon, self.lat, phylum, seeddata, weightspath, biomegridpath)
+        #     self.mass = mass
+        #     self.r0 = r
+        
+        self.z = -np.abs(self.z)
+        if outfile is not None:
+            self.save_seed(outfile)
+    
+    def save_seed(self, outfile):
+        data = {}
+        data["lon"] = self.lon
+        data["lat"] = self.lat
+        data["mass"] = self.mass
+        data["r0"] = self.r0
+        data["z"] = self.z
+        if self.biome is not None:
+            data["origin_marker"] = self.biome
+        df = pd.DataFrame(data)
+        df.to_pickle(outfile)
+
+class SeedFromFile:
+    def __init__(self, file):
+        data = load_data(file)
+        for keys, values in data.items():
+            setattr(self, keys, values.values)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
 
 def generate_mass_from_file(lon, lat, phylum:str, path:str): #Mass in units mg/m*2 Y
     data = load_data(path)
@@ -35,7 +198,6 @@ def generate_mass_from_file(lon, lat, phylum:str, path:str): #Mass in units mg/m
     return np.asarray(M)
 
 def get_radius(mass, genus): #Units of mass in mg
-    """Biometric equations compiled for different genuses from Lucas et al 2011."""
     
     def log_biom_eq(m, a, b):
         return (m / (10 ** a))**(1/b)
@@ -148,92 +310,4 @@ def generate_mass_from_random_genus(lon, lat, phylum:str, path:str, weights_path
     
     return np.asarray(M), np.asarray(r)
 
-
-class RectangleSeed:
-
-    def __init__(self, ncfile, skip = 1):
-        X = Dataset(ncfile)
-        self.lat = X["lat"][:]
-        self.lon = X["lon"][:]
-        self.s = skip
-        
-    
-    def grid(self):
-        if self.s > 1:
-            latmin, latmax = np.min(self.lat), np.max(self.lat)
-            lonmin, lonmax = np.min(self.lon), np.max(self.lon)
-
-            lons = np.linspace(lonmin, lonmax, len(self.lon) // self.s)
-            lats = np.linspace(latmin, latmax, len(self.lat) // self.s)
-        elif self.s == 1:
-            lons, lats = self.lon, self.lat
-        else:
-            raise ValueError("Paramater skip must be >=1.")
-        
-        # self.N = len(lons) * len(lats)
-        
-        # if not os.path.isfile("lons{}.txt".format(self.s)):
-        #     np.savetxt("lons{}.txt".format(self.s), lons)
-        #     np.savetxt("lats{}.txt".format(self.s), lats)
-
-        lons, lats = np.meshgrid(lons, lats)
-        
-        return lons, lats
-    @staticmethod
-    def mask_grid(lons, lats):
-        lon,lat = [], []
-        for i in range(lons.shape[0]):
-            for j in range(lons.shape[1]):
-                if globe.is_ocean(lon = lons[i, j], lat = lats[i, j]):
-                    lon.append(lons[i, j])
-                    lat.append(lats[i, j])
-            
-        return lon, lat
-
-class Seed:
-
-    def __init__(self, seedtype, seeddata = None, ncfile = None, skip = 1, microbialdecaytype = "mass",
-                 phylum = None, lon = None, lat = None, z = 0, weightspath = None, biomegridpath = None, outfile = None):
-        
-        if seedtype == "rectangle":
-            if ncfile is None:
-                raise NameError("Missing netCDF file for seeding.")
-            
-            o = RectangleSeed(ncfile, skip)
-            self.lon, self.lat = o.mask_grid(*o.grid())
-        elif seedtype == "line":
-            if lon is None or lat is None:
-                raise ValueError("Missing lon, lat values for seeding.")
-            
-            self.lon, self.lat = lon, lat
-        
-        if seeddata is None:
-            self.mass = np.ones(len(self.lon))
-            self.r0 = np.ones(len(self.lon))
-        elif microbialdecaytype == "mass":
-            self.mass = generate_mass_from_file(self.lon, self.lat, phylum, seeddata)
-            self.r0 = None
-        else:
-            mass, r = generate_mass_from_random_genus(self.lon, self.lat, phylum, seeddata, weightspath, biomegridpath)
-            self.mass = mass
-            self.r0 = r
-        
-        self.z = -np.abs(z)
-        if outfile is not None:
-            self.save_seed(outfile)
-    
-    def save_seed(self, outfile):
-        data = {}
-        data["lon"] = self.lon
-        data["lat"] = self.lat
-        data["mass"] = self.mass
-        data["r0"] = self.r0
-        data["z"] = self.z
-        df = pd.DataFrame(data)
-        df.to_pickle(outfile)
-
-class SeedFromFile:
-    def __init__(self, file):
-        data = load_data(file)
-        for keys, values in data.items():
-            setattr(self, keys, values.values)
+"""
