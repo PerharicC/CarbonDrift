@@ -57,7 +57,7 @@ def get_status_info(data):
 
 class Plot:
 
-    def __init__(self, file1, file2 = None, cmap = None,
+    def __init__(self, file1, file2 = None, file3 = None, file4 = None, cmap = None,
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200,
                  diff = True, absolute = False, fontweight = "normal",
@@ -82,8 +82,16 @@ class Plot:
 
         self.obj = Open(file1)
 
+        self.objects = [self.obj]
         if file2 is not None:
             self.obj2 = Open(file2)
+            self.objects.append(self.obj2)
+        if file3 is not None:
+            self.obj3 = Open(file3)
+            self.objects.append(self.obj3)
+        if file4 is not None:
+            self.obj4 = Open(file4)
+            self.objects.append(self.obj4)
         
         logger.debug("Adding attributes.")
 
@@ -167,7 +175,7 @@ class Plot:
         if legend is None:
             self.legend = False
         else:
-            self.label1, self.label2 = legend.split(",")
+            self.labels = legend.split(",")
             self.legend = True
 
     
@@ -674,7 +682,7 @@ class Plot:
     def drifter_properties(self):
         import matplotlib.style as style
         
-        style.use('seaborn-v0_8-notebook')
+        style.use('tableau-colorblind10')
         
         plt.close()
 
@@ -685,21 +693,10 @@ class Plot:
         
 
         logger.debug("Searching for bad trajectories.")
-        bad1 = self.clean_dataset(self.obj)
-        bad2 = self.clean_dataset(self.obj2)
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
         logger.debug("Reading required simulation properties.")
-
-        lon1 = self.obj.get_property("lon")
-        lon1 = np.ma.filled(lon1, np.nan)
-
-        lat1 = self.obj.get_property("lat")
-        lat1 = np.ma.filled(lat1, np.nan)
-
-        lon2 = self.obj2.get_property("lon")
-        lon2 = np.ma.filled(lon2, np.nan)
-
-        lat2 = self.obj2.get_property("lat")
-        lat2 = np.ma.filled(lat2, np.nan)
 
         if self.prop1 is None:
             logger.info("Property 1 not specified. Setting x to time.")
@@ -707,68 +704,59 @@ class Plot:
         if self.prop2 is None:
             logger.info("Property 2 not specified. Setting y to mass.")
             self.prop2 = "mass"
-        
-        if self.prop1 != "time":
-            x1 = self.obj.get_property(self.prop1)
-            x1 = np.ma.filled(x1, np.nan)
-            x2 = self.obj2.get_property(self.prop1)
-            x2 = np.ma.filled(x2, np.nan)
-            unitsx = "[" + self.obj.data[self.prop1].units + "]"
-        else:
-            x1 = self.create_timedelta_array(lon1.shape[0])
-            x2 = self.create_timedelta_array(lon2.shape[0])
-            unitsx = "[h]"
-        
-        if self.prop2 != "time":
-            y1 = self.obj.get_property(self.prop2)
-            y1 = np.ma.filled(y1, np.nan)
-            y2 = self.obj2.get_property(self.prop2)
-            y2 = np.ma.filled(y2, np.nan)
-            unitsy = "[" + self.obj.data[self.prop2].units + "]"
-        else:
-            y1 = self.create_timedelta_array(lon1.shape[0])
-            y2 = self.create_timedelta_array(lon2.shape[0])
-            unitsy = "[h]"
-
-        k = 1
-
+                
+        lines = []
+        linestyles = ["solid", "dashed", "dotted", "dashdot"]
         for i, j in self.loc:
-            lon_idx1 = np.where(lon1[0, :] == i)
-            lat_idx1 = np.where(lat1[0, :] == j)
-            idx1 = np.intersect1d(lon_idx1, lat_idx1)
-            lon_idx2 = np.where(lon2[0, :] == i)
-            lat_idx2 = np.where(lat2[0, :] == j)
-            idx2 = np.intersect1d(lon_idx2, lat_idx2)
+            for k, obj in enumerate(self.objects):
+                lon = obj.get_property("lon")
+                lon = np.ma.filled(lon, np.nan)
 
-            if len(idx1) == 0 or len(idx2) == 0:
-                logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
-                continue
-            else:
-                idx1 = idx1[0]
-                idx2 = idx2[0]
+                lat = obj.get_property("lat")
+                lat = np.ma.filled(lat, np.nan)
+                lon_idx = np.where(lon[0, :] == i)
+                lat_idx = np.where(lat[0, :] == j)
+                idx = np.intersect1d(lon_idx, lat_idx)
+
+                if len(idx) == 0:
+                    logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
+                    continue
+                else:
+                    idx = idx[0]
             
-            if idx1 in bad1 or idx2 in bad2:
-                logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
-                continue
+                if idx in bad[k]:
+                    logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
+                    continue
+                
+                if self.prop1 != "time":
+                    x = obj.get_property(self.prop1)
+                    x = np.ma.filled(x, np.nan)
+                    unitsx = "[" + obj.data[self.prop1].units + "]"
+                else:
+                    x = self.create_timedelta_array(lon.shape[0])
+                    unitsx = "[h]"
+                
+                if self.prop2 != "time":
+                    y = obj.get_property(self.prop2)
+                    y = np.ma.filled(y, np.nan)
+                    unitsy = "[" + self.obj.data[self.prop2].units + "]"
+                else:
+                    y = self.create_timedelta_array(lon.shape[0])
+                    unitsy = "[h]"
+
+                if self.prop1 == "time":
+                    X = x
+                else:
+                    X = x[:, idx]
             
-            if self.prop1 == "time":
-                X1 = x1
-                X2 = x2
-            else:
-                X1 = x1[:, idx1]
-                X2 = x2[:, idx2]
-            
-            if self.prop2 == "time":
-                Y1 = y1
-                Y2 = y2
-            else:
-                Y1 = y1[:, idx1]
-                Y2 = y2[:, idx2]
-            # color = next(self.ax._get_lines.prop_cycler)['color']
-            line1, = self.ax.plot(X1, Y1, lw = self.lw)
-            # color = line1[0].get_color()
-            line2,= self.ax.plot(X2, Y2, lw = self.lw)#, linestyle = "dashed")#, color = color)
-            k += 1
+                if self.prop2 == "time":
+                    Y = y
+                else:
+                    Y = y[:, idx]
+                # color = next(self.ax._get_lines.prop_cycler)['color']
+                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyles[k % 4])
+                lines.append(line)
+                
         
         if self.xlabel is None:
             self.ax.set_xlabel(self.prop1 + " " + unitsx)
@@ -782,7 +770,7 @@ class Plot:
         if self.title is not None:
             self.ax.set_title(self.title)
         
-        if self.legend: self.ax.legend([line1, line2], [f"{self.label1}", f"{self.label2}"])
+        if self.legend: self.ax.legend(lines, [f"{label}" for label in self.labels])
         if self.xlim is not None: self.ax.set_xlim(*self.xlim)
         if self.ylim is not None: self.ax.set_ylim(*self.ylim)
         plt.grid()
@@ -796,5 +784,72 @@ class Plot:
 
     def get_mass_sum_at_depth(self):
         M = self.zone_crossing_event(self.obj, self.lons, self.lats, self.depth, self.clean_dataset(self.obj), [])
-        x = len(np.where(M > 0)[0])
+        if not self.abs:
+            x = len(np.where(M > 0)[0])
+        else:
+            x = 1
         return np.sum(M[np.invert(np.isnan(M))]) / x
+    
+    def get_biome_weighted_mass_at_depth(self):
+        logger.debug("Reading required simulation properties.")
+        obj = self.obj
+        z = obj.get_property('z')
+        z = np.ma.filled(z, np.nan)
+
+        mass = obj.get_property("mass")
+        mass = np.ma.filled(mass, np.nan)
+
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        biome = obj.get_property("origin_marker")
+        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
+        biome = np.ma.filled(biome, np.nan)
+
+        status = obj.get_property("status")
+        status = np.ma.MaskedArray(status.data, status.mask, float)
+        status = np.ma.filled(status, np.nan)
+
+        logger.debug("Start summing masses.")
+
+        depth = self.depth
+        mass_by_biomes = np.zeros(4)
+        for i in range(mass.shape[1]):
+
+            drifter_trajectory = z[:, i]
+            drifter_mass = mass[:, i]
+            b = int(biome[0, i])
+
+            trajectory_nans = np.invert(np.isnan(drifter_trajectory))
+            
+            if type(depth) != str:
+                if np.min(drifter_trajectory[trajectory_nans])>depth:
+                    continue
+
+                m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
+            
+            else:
+                #Sea_floor.
+                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
+                # if len(bounce) > 0:
+                #     raise ValueError("Depth decreases.")
+                
+                s = status[:, i]
+                sea_floor = np.where(s == self.seafloor_idx)[0]
+                if len(sea_floor) >0:
+                    depth_idx = sea_floor[0]
+                else:
+                    depth_idx = len(drifter_trajectory)-1
+                m = drifter_mass[depth_idx]
+
+
+            if np.isnan(m):
+                continue
+            
+            mass_by_biomes[b] += m
+        
+        logger.debug("Finish summing masses.")
+        return mass_by_biomes, np.sum(mass_by_biomes) * 10 ** (-15)
