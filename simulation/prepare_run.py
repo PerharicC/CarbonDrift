@@ -90,9 +90,13 @@ class PrepareSimulation:
         for key, value in self.config.items():
             self.obj.set_config(key, value)
         
+        if hasattr(self.seeder, "origin_marker"):
+                origin_marker = self.seeder.origin_marker
+        else:
+                origin_marker = 0
         if self.microbialdecaytype == "mass":
             self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z,
-                                   mass = self.seeder.mass, time=time)
+                                   mass = self.seeder.mass, time=time, origin_marker = origin_marker)
         elif self.microbialdecaytype == "area":
             self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z, mass = self.seeder.mass,
-                                   jelly_radius = self.seeder.r0, time=time)
+                                   jelly_radius = self.seeder.r0, time=time, origin_marker = origin_marker)
