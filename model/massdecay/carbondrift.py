@@ -100,6 +100,7 @@ class CarbonDrift(OceanDrift):
         self.max_ram = kwargs.pop("max_ram", None)
         self.max_num = kwargs.pop("max_num", None)
         self.decay_type = kwargs.pop("decay_type", "linear")
+        self.vertical_velocity_type = kwargs.pop("vertical_velocity_type", "variable")
         
         super(CarbonDrift, self).__init__(*args, **kwargs)
 
@@ -123,8 +124,8 @@ class CarbonDrift(OceanDrift):
         self.horizontal_advection = True
     
     def update(self):
-        if self.time == self.start_time:
-            self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
+        # if self.time == self.start_time:
+        #     self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
         negative_temperature_idx = self.environment.sea_water_temperature < 0
         self.environment.sea_water_temperature[negative_temperature_idx] = 0
         if self.horizontal_advection and self.steps_calculation > 1:
@@ -181,6 +182,8 @@ class CarbonDrift(OceanDrift):
         return 0.140 * np.exp(0.145 * self.environment.sea_water_temperature) / (24 * 3600) #Return exponential decay.
     
     def vertical_velocity(self):
+        if self.vertical_velocity_type == "constant":
+            return self.w0
         return self.w0 * (self.elements.mass / self.m0[self.elements.ID - 1]) ** (1 / 6)
 
     def decay_check(self):
