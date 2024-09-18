@@ -103,6 +103,12 @@ class Plot:
         
         self.depth = depth
         self.cmap = cmap
+        if lons is None:
+            logger.warning("Lons is not given - asumming 1 degree resolution over all space.")
+            lons = np.arange(-180, 180, 1)
+        if lats is None:
+            logger.warning("Lats is not given - asumming 1 degree resolution over all space.")
+            lats = np.arange(-90, 90, 1)
         self.lons = lons
         self.lats = lats
         self.figsize = figsize

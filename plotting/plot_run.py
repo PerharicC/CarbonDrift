@@ -33,8 +33,10 @@ def main():
     p.add_argument("method", type = str)
     p.add_argument("-f1", "--file1", type = str, required=True)
     p.add_argument("-f2", "--file2", type = str)
-    p.add_argument("-lons", type = str, help="lons.txt file from simulation.")
-    p.add_argument("-lats", type = str, help="lats.txt file from simulation.")
+    p.add_argument("-f3", "--file3", type = str)
+    p.add_argument("-f4", "--file4", type = str)
+    p.add_argument("-lons", type = str, help=".txt file of longitude seed. If None -180:180:1")
+    p.add_argument("-lats", type = str, help=".txt file of latitude seed. If None -90:90:1")
     p.add_argument("-cmap", type = str, required=False)
     p.add_argument("-t", "--title", type = str, required=False,
                    help = "Figure title - format aaa_bbb_ccc")
