@@ -141,6 +141,54 @@ To plot other properties one can choose between
 
 3. **Cartopy map of mass at given depth**
 
-To plot the mass of each grid cell at a given depth the following parameters should be provided:
+To plot the mass of each grid cell at a given depth the following parameters may be provided:
+
+```
+mass_map
+-f1
+<file1 path>
+-fs
+12:8
+-cblabel
+$m/m_0\,\,\text{at sea floor}$
+-t
+EXP_decay:_z0_=_-100_m,_w0_=_500_m/d
+-d
+-6000
+-cmap
+tab20b
+--shrink
+0.8
+-o
+./images/mass_map.png
+```
+
+**NOTE:** If one adds the -abs argument, the current mass will be plotted, otherwise the mass fraction $\frac{m}{m_0}(\varphi, \lambda)$ will be plotted for each grid cell.
+
+**NOTE:** If one would like to plot the difference between two simulations, file2 should also be provided in the parameters, together with the -diff argument. One can then impose the -abs argument to plot the absolute difference file1 - file2. If -abs is not added, the plotted result will be (file1 - file2) / file1.
+
+**NOTE:** If the depth argument -d is set to less than -5000, depth will be set to sea floor.
+
+A possible output will look something like:
+
+![](/images/mass_map.png)
+
+4. **Total mass at depth**
+
+To calculate the mass sum of all grid cells at a given depth, one can run the simulation with parameters
+
+```
+get_mass_sum_at_depth
+-f1
+<file1 path>
+-d
+-100
+-abs
+```
+
+The -abs argument insures, that the absolute sum is returned. Alternatively the fraction
+$\frac{\sum_i m_i (z = d)}{\sum_i m_i (t = 0)}$ is plotted.
+
+To get biome specific masses the method *get_mass_sum_at_depth* should be replaced by *get_biome_weighted_mass_at_depth* in the parameter.txt file.
 
 **WORK IN PROGRESS**
