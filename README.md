@@ -191,4 +191,33 @@ $\frac{\sum_i m_i (z = d)}{\sum_i m_i (t = 0)}$ is plotted.
 
 To get biome specific masses the method *get_mass_sum_at_depth* should be replaced by *get_biome_weighted_mass_at_depth* in the parameter.txt file.
 
+5. **Current strength**
+
+To plot the distance traveled by each drifter until it reaches a given depth in kilometers the following parameters may be provided:
+
+```
+current_strength
+-f1
+<file1 path>
+-d
+-1000
+--shrink
+0.8
+-clip
+0:70
+-cmap
+Greens
+-cblabel
+$|\vec{r}(z=-1000\,\mathrm{m}) - \vec{r}_0|$ [km]
+-t
+Constant_velocity_w0_=_100_m/d
+-o
+./images/current.png
+```
+
+**NOTE:** If a drifter had not yet passed the specified depth and was active at the end of the simulation, a warning will be raised and the absolute distance between the first and last points will be shown.  
+
+A possible output will look something like:
+
+![](/images/current.png)
 **WORK IN PROGRESS**
