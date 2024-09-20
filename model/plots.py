@@ -6,7 +6,7 @@ from matplotlib import animation
 from matplotlib.gridspec import GridSpec
 
 import matplotlib.ticker as mticker
-
+from matplotlib.lines import Line2D
 import cartopy
 from cartopy import config
 import cartopy.crs as ccrs
@@ -51,9 +51,19 @@ def get_status_info(data):
     values = status.flag_values
     # ice = "Ice"
     seafloor = "Reached_Sea_Floor"
+    stranded = "stranded"
     # ice_idx = meanings.index(ice)
-    seafloor_idx = meanings.index(seafloor)
-    return values[seafloor_idx]#, values[ice_idx] 
+    if seafloor in meanings:
+        seafloor_idx = meanings.index(seafloor)
+        sf = values[seafloor_idx]
+    else:
+        sf = -10
+    if stranded in meanings:
+        stranded_idx = meanings.index(stranded)
+        st = values[stranded_idx]
+    else:
+        st = -11
+    return sf, st
 
 class Plot:
 
@@ -125,9 +135,10 @@ class Plot:
 
         logger.debug("Decrypting status numberings.")
 
-        seafloor = get_status_info(self.obj.data)
+        seafloor, stranded = get_status_info(self.obj.data)
         # self.ice_idx = ice
         self.seafloor_idx = seafloor
+        self.stranded_idx = stranded
 
         logger.debug("Setting up clipping.")
         if clip is None:
@@ -367,6 +378,7 @@ class Plot:
         return k * x0 + n, idx2
     
     def zone_crossing_event(self, obj:Open, lons, lats, depth, bad1, bad2):
+        
         """Calculate particle properties when crossing a certain depth."""
 
         logger.debug("Reading required simulation properties.")
@@ -509,40 +521,46 @@ class Plot:
 
         
         logger.debug("Start calculating distance.")
-        distance, in_cell = self.calculate_horizontal_distance(self.obj, self.lons, self.lats, bad)
+        distance, in_cell, is_at_seafloor, is_stranded = self.calculate_horizontal_distance(self.obj, self.lons, self.lats, bad)
         
         D = np.copy(distance)
         rows, cols = np.where(D == 0)
         D[rows, cols] = np.nan
-        rows, cols = np.where(in_cell == 0)
-        D[rows, cols] = np.nan
+        # rows2, cols2 = np.where(in_cell == 0)
+        # D[rows2, cols2] = np.nan
         logger.debug("Start plotting")
-        ax.coastlines(zorder = 3, resolution='10m')
+        ax.add_feature(cartopy.feature.LAND, zorder=3, edgecolor='k', facecolor = "beige")
 
         if self.clip:
             D = self.clip_array(np.copy(D))
         
         sm = ax.contourf(self.lons, self.lats, D.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1, extend = "max")
-        # ax.contourf(self.lons, self.lats, np.ma.masked_where(distance != 0, distance).T,colors='none', hatches=['xx'], extend='both')
-        ax.scatter(self.lons[np.where(in_cell==0)[0]], self.lats[np.where(in_cell==0)[1]], color = "k", label = "moved out of cell")
-        ax.legend()
+        ax.contour(self.lons, self.lats, in_cell.T, levels = 0, transform = ccrs.PlateCarree(), colors = "red")
+        ax.contour(self.lons, self.lats, is_at_seafloor.T, levels = 1, transform = ccrs.PlateCarree(), colors = "black", label = "seafloor")
+        ax.contour(self.lons, self.lats, is_stranded.T, levels = 1, transform = ccrs.PlateCarree(), colors = "orange", label = "stranded")
+        
+        incell_label = Line2D([0], [0], color='red', lw=2)
+        seafloor_label = Line2D([0], [0], color='black', lw=2)
+        stranded_label = Line2D([0], [0], color='orange', lw=2)
+
+        ax.legend([incell_label, seafloor_label, stranded_label], ['moved out of cell', "seafloor", "stranded"], loc='upper right')
 
         cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
-        cb.set_label(r"$|\vec{r}(t_F) - \vec{r}(t_0)|$ [km]")
-        
+        if self.cb_units is not None:
+            cb.set_label(f"{self.cb_units}")
         if self.title is not None:
             ax.set_title(self.title, fontweight = self.fontweight)
 
-        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--')
-        gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
-        gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
-        gl.xformatter = LONGITUDE_FORMATTER
-        gl.yformatter = LATITUDE_FORMATTER
-        ax.set_xticks([-180, -90, 0, 90, 180])
-        ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
-        ax.set_yticks([-90, -45, 0, 45, 90])
-        ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
+        # gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
+        # gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
+        # gl.xformatter = LONGITUDE_FORMATTER
+        # gl.yformatter = LATITUDE_FORMATTER
+        # ax.set_xticks([-180, -90, 0, 90, 180])
+        # ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
+        # ax.set_yticks([-90, -45, 0, 45, 90])
+        # ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
 
         plt.tight_layout()
 
@@ -555,7 +573,6 @@ class Plot:
     def calculate_horizontal_distance(self, obj: Open, lons, lats, bad):
 
         from haversine import haversine, Unit
-        from numba_progress import ProgressBar
         from tqdm import trange
 
         logger.debug("Reading required simulation properties.")
@@ -565,61 +582,67 @@ class Plot:
 
         lat = obj.get_property("lat")
         lat = np.ma.filled(lat, np.nan)
+        z = obj.get_property("z")
+        z = np.ma.filled(z, np.nan)
         status = obj.get_property("status")
         status = np.ma.MaskedArray(status.data, status.mask, float)
         status = np.ma.filled(status, np.nan)
-        moving = obj.get_property("moving")
-        moving = np.ma.MaskedArray(moving.data, moving.mask, float)
-        moving = np.ma.filled(moving, np.nan)
-
-        # @jit(nogil=True)
-        def fast_distance_calculator(lons, lats, lon, lat, moving, bad):
-            distance_traveled = np.zeros((len(lons), len(lats)))
-            is_in_cell = np.ones((len(lons), len(lats)))
-
-            for i in trange(lon.shape[1]):
-
-                #Remove bad particles.
-                if i in bad:
-                    # progress.update(1)
-                    continue
-
-                drifter_lon = lon[:, i]
-                drifter_lat = lat[:, i]
-
-                movement_stopped = np.where(moving[:, i] == 0)[0]
-
-                if len(movement_stopped) > 0:
-                    movement_stopped = movement_stopped[0]
-                else:
-                    movement_stopped = len(drifter_lat) - 1
-                
-                pos1 = (drifter_lat[0], drifter_lon[0])
-                pos2 = (drifter_lat[movement_stopped], drifter_lon[movement_stopped])
-
-                lon_grid = np.argmin(np.abs(lons - pos1[1]))
-                lat_grid = np.argmin(np.abs(lats - pos1[0]))
-                if np.abs(pos2[0] - pos1[0]) > (lats[1] - lats[0]) / 2 or np.abs(pos1[1] - pos2[1]) > (lons[1] - lons[0]) / 2:
-                    is_in_cell[lon_grid, lat_grid] = 0
-                    d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
-                    distance_traveled[lon_grid, lat_grid] = d
-                else:
-                    # d = 2 * 6371 * np.arcsin(np.sqrt(np.sin((pos2[0] - pos1[0]) / 2) ** 2 + 
-                    #                                  np.cos(pos2[0]) * np.cos(pos1[0]) * np.sin((pos2[1] - pos1[1]) / 2) ** 2))
-                    
-                    d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
-                    # print(d)
-                    distance_traveled[lon_grid, lat_grid] = d
+        distance_traveled = np.zeros((len(lons), len(lats)))
+        is_in_cell = np.ones((len(lons), len(lats)))
+        is_stranded = np.zeros((len(lons), len(lats)))
+        is_at_seafloor = np.zeros((len(lons), len(lats)))
+        for i in trange(lon.shape[1]):
+            stranded = False
+            reached_sea_floor = False
+            #Remove bad particles.
+            if i in bad:
                 # progress.update(1)
-            return distance_traveled, is_in_cell
-        
-        # with ProgressBar(total = lon.shape[1]) as progress:
-        #     d, in_cell = fast_distance_calculator(lons, lats, lon, lat, moving, bad, progress)
+                continue
 
-        d, in_cell = fast_distance_calculator(lons, lats, lon, lat, moving, bad)
-        return d, in_cell
+            drifter_lon = lon[:, i]
+            drifter_lat = lat[:, i]
+            drifter_z = z[:, i]
+            drifter_status = status[:, i]
+            nans = np.invert(np.isnan(drifter_lat))
+            if np.min(drifter_z[nans]) > self.depth:
+                if len(np.where(drifter_status == self.stranded_idx)[0]) > 0:
+                    idx = np.where(drifter_status == self.stranded_idx)[0][0]
+                    stranded = True
+                else:
+                    idx = np.where(drifter_status == self.seafloor_idx)[0]
+                    if len(idx) == 0:
+                        logger.warning("Drifter at initial position ({}, {}) has not been deactivated/passed the specified depth.".format(drifter_lat[0], drifter_lon[0]))
+                        logger.warning("Taking the last position.")
+                        idx = len(drifter_z[nans]) - 1
+                    else:
+                        idx = idx[0]
+                        reached_sea_floor = True
+                phi = drifter_lat[idx]
+                lam = drifter_lon[idx]
+            else:
+                phi, idx = self.interpolate(drifter_z, drifter_lat, self.depth)
+                lam, _ = self.interpolate(drifter_z, drifter_lon, self.depth)
+            
+            pos1 = (drifter_lat[0], drifter_lon[0])
+            pos2 = (phi, lam)
+
+            lon_grid = np.argmin(np.abs(lons - pos1[1]))
+            lat_grid = np.argmin(np.abs(lats - pos1[0]))
+            if np.abs(pos2[0] - pos1[0]) > (lats[1] - lats[0]) / 2 or np.abs(pos1[1] - pos2[1]) > (lons[1] - lons[0]) / 2:
+                is_in_cell[lon_grid, lat_grid] = 0
+                d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
+                distance_traveled[lon_grid, lat_grid] = d
+            else:
+                d = haversine(pos1, pos2, unit = Unit.KILOMETERS)
+                distance_traveled[lon_grid, lat_grid] = d
+            if stranded:
+                is_stranded[lon_grid, lat_grid] = 1
+            if reached_sea_floor:
+                is_at_seafloor[lon_grid, lat_grid] = 1
+        return distance_traveled, is_in_cell, is_at_seafloor, is_stranded
 
     def drifter_locations(self):
+        '''Plot locations of specified drifters on a world map.'''
         from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
         import matplotlib.style as style
 
@@ -688,6 +711,7 @@ class Plot:
             plt.show()
 
     def drifter_properties(self):
+        '''Plot drifter prop1 vs prop2 at a specified location.'''
         import matplotlib.style as style
         
         style.use('tableau-colorblind10')
@@ -791,6 +815,9 @@ class Plot:
             plt.show()
 
     def get_mass_sum_at_depth(self):
+
+        '''Return sum of mass over all grid points at given depth.'''
+
         M = self.zone_crossing_event(self.obj, self.lons, self.lats, self.depth, self.clean_dataset(self.obj), [])
         if not self.abs:
             x = len(np.where(M > 0)[0])
@@ -799,6 +826,7 @@ class Plot:
         return np.sum(M[np.invert(np.isnan(M))]) / x
     
     def get_biome_weighted_mass_at_depth(self):
+        '''Return sum of mass over all grid points in the 4 biomes at given depth.'''
         logger.debug("Reading required simulation properties.")
         obj = self.obj
         z = obj.get_property('z')
