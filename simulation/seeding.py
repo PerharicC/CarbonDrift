@@ -20,7 +20,7 @@ def load_json_data(file):
 
 def seed_like_Luo(bathymetrypath, lon, lat, phylum, biomegridpath, initialmassdata, poctype):
     bmt = Dataset(bathymetrypath)
-    biomes = np.loadtxt(biomegridpath)
+    biomes = np.load(biomegridpath)
     biome_name_map = ["HCSS", "LC", "HCPS", "COAST"]
     biome_N_count = [0, 0, 0, 0]
     for phi, lam in zip(lat, lon):
@@ -80,9 +80,10 @@ class RectangleSeed:
         # lats, lons = np.meshgrid(lats, lons)
         return lons, lats
     @staticmethod
-    def mask_grid(lons, lats, bathymetrypath, temperaturepath):
+    def mask_grid(lons, lats, bathymetrypath, temperaturepath, biomegridpath):
         depth = Dataset(bathymetrypath)["topo"][:]
         tmp = Dataset(temperaturepath)["thetao"][0, :, :, :]
+        biomegrid = np.load(biomegridpath)
         lon,lat = [], []
         lm = reader_global_landmask.Reader()
         # land = lm.get_variables("land_binary_mask", y =lats, x = lons)["land_binary_mask"]
@@ -92,9 +93,11 @@ class RectangleSeed:
                 if not land:
                     if depth[i, j] > 0:
                         continue
+                    if np.isnan(biomegrid[i, j]):
+                        continue
                     # if tmp.mask[0, i, j]:
                     #     continue
-                    # if np.any(tmp.data[:11, i, j] <= 0):
+                    # if np.any(tmp.data[:, i, j][np.invert(tmp.mask[:, i, j])] <= 0):
                     #     continue
                     lon.append(lons[j])
                     lat.append(lats[i])
@@ -111,7 +114,7 @@ class Seed:
                 raise NameError("Missing netCDF file for seeding.")
             
             o = RectangleSeed(skip)
-            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, ncfile)
+            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, ncfile, biomegridpath)
         elif seedtype == "line":
             if lon is None or lat is None:
                 raise ValueError("Missing lon, lat values for seeding.")
