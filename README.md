@@ -51,8 +51,9 @@ The simulation can then be run as:
 CarbonDrift provides some built in plotting methods in the model.plots submodule. To run any one of these methods open the terminal in the root directory and type
 
 ```console
-~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> -f1 <file1path> -f2 <file2path (not necessary if not plotting difference)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
+~/CarbonDrift$ python -m plotting.plot_run <plot method, e.g mass_map> <file1path> <file2path (not necessary)> -o <outfile.pdf filepath> -d <depth at which mass is summed> -clip <min:max (use m for minus)>
 ```
+**NOTE:** The number of filepaths is unlimited.
 
 Similarly one can save certain/all parameters to a .txt file and in a terminal simply run the command
 
@@ -67,7 +68,6 @@ Save the following parameters to a .txt file:
 
 ```
 drifter_locations
--f1
 <simualtion filepath>
 -loc
 m48:30,5:0
@@ -90,18 +90,14 @@ And the output will be:
 
 2. **Plot some drifter properties**
 
-To make a 2D plot of some property vs another property for up to four different simulations the parameter file should contain the following arguments:
+To make a 2D plot of some property vs another property for N different simulations the parameter file should contain the following arguments:
 
 ```
 drifter_properties
--f1
 <file1 path>
--f2
 <file2 path>
--f3
-<file3 path>
--f4
-<file4 path>
+...
+<fileN path>
 -fs
 8:10
 -loc
@@ -139,13 +135,14 @@ To plot other properties one can choose between
 ["time", "mass", "z", "sea_water_temperature", "x_sea_water_velocity", "y_sea_water_velocity"]
 ```
 
+**NOTE:** If one property is mass and the -abs argument is not set, the plot will show mass fraction.
+
 3. **Cartopy map of mass at given depth**
 
 To plot the mass of each grid cell at a given depth the following parameters may be provided:
 
 ```
 mass_map
--f1
 <file1 path>
 -fs
 12:8
@@ -165,9 +162,11 @@ tab20b
 
 **NOTE:** If one adds the -abs argument, the current mass will be plotted, otherwise the mass fraction $\frac{m}{m_0}(\varphi, \lambda)$ will be plotted for each grid cell.
 
-**NOTE:** If one would like to plot the difference between two simulations, file2 should also be provided in the parameters, together with the -diff argument. One can then impose the -abs argument to plot the absolute difference file1 - file2. If -abs is not added, the plotted result will be (file1 - file2) / file1.
+**NOTE:** If one would like to **plot the difference** between two simulations, two filepaths should be provided in the parameters, together with the -diff argument. One can then impose the -abs argument to plot the absolute difference file1 - file2. If -abs is not added, the plotted result will be (file1 - file2) / file1.
 
-**NOTE:** If the depth argument -d is set to less than -5000, depth will be set to sea floor.
+**NOTE::** If one would like to **plot the sum** of multiple simulations, N filepaths should be provided in the parameters, together with the -diff argument.
+
+**NOTE:** If the depth argument -d is set to less than -5000, depth will be set to **sea floor**.
 
 A possible output will look something like:
 
@@ -179,7 +178,6 @@ To calculate the mass sum of all grid cells at a given depth, one can run the si
 
 ```
 get_mass_sum_at_depth
--f1
 <file1 path>
 -d
 -100
@@ -197,7 +195,6 @@ To plot the distance traveled by each drifter until it reaches a given depth in 
 
 ```
 current_strength
--f1
 <file1 path>
 -d
 -1000

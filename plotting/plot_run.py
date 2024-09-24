@@ -31,10 +31,7 @@ def configure_locations(s:str):
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument("method", type = str)
-    p.add_argument("-f1", "--file1", type = str, required=True)
-    p.add_argument("-f2", "--file2", type = str)
-    p.add_argument("-f3", "--file3", type = str)
-    p.add_argument("-f4", "--file4", type = str)
+    p.add_argument("files", nargs = "+", type = str)
     p.add_argument("-lons", type = str, help=".txt file of longitude seed. If None -180:180:1")
     p.add_argument("-lats", type = str, help=".txt file of latitude seed. If None -90:90:1")
     p.add_argument("-cmap", type = str, required=False)
@@ -42,8 +39,10 @@ def main():
                    help = "Figure title - format aaa_bbb_ccc")
     p.add_argument("-abs", "--absolute", action="store_true",
                    help = "Plot absolute difference.")
-    p.add_argument("-diff", action="store_false",
-                   help="If set, don't plot difference of two files.")
+    p.add_argument("-diff", action="store_true",
+                   help="Plot difference of first two files.")
+    p.add_argument("-add", action="store_true",
+                   help="Plot sum of all files.")
     p.add_argument("-o", "--outfile", type = str)
     p.add_argument("-fs", "--figsize", default = (20, 20), type=valid_figsize,
                    help="Figsize - format W:H")
@@ -71,6 +70,7 @@ def main():
 
 def plot(**kwargs):
     plotmethod = kwargs.pop("method")
+    files = kwargs.pop("files", [])
 
     lons = kwargs.pop("lons")
     lats = kwargs.pop("lats")
@@ -84,7 +84,7 @@ def plot(**kwargs):
     if kwargs["locations"] is not None:
         kwargs["locations"] = configure_locations(kwargs["locations"])
 
-    p = Plot(**kwargs)
+    p = Plot(*files, **kwargs)
     return getattr(p, plotmethod)()
 
 

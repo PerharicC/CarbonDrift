@@ -67,41 +67,41 @@ def get_status_info(data):
 
 class Plot:
 
-    def __init__(self, file1, file2 = None, file3 = None, file4 = None, cmap = None,
+    def __init__(self, *files, cmap = None,
                  lons = None, lats = None, figsize = (20, 20),
-                 fontsize = 17, title = None, depth = -200,
+                 fontsize = 17, title = None, depth = -200, add = False,
                  diff = True, absolute = False, fontweight = "normal",
                  outfile = None, shrink = 1, clip = None, locations = None,
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None):
 
+        if len(files) == 0:
+            raise AttributeError("NO filepath is provided.")
+        
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
         self.fig = fig
         self.ax = ax
         plt.rcParams.update({'font.size': fontsize})
         
-        if file2 is None and diff:
-            logger.warning("Only one filepath given, changing diff to False.")
+        if len(files) == 1 and (diff or add):
+            logger.warning("Only one filepath given, changing diff and add to False.")
             diff = False
-        elif file2 is not None and not diff:
-            logger.warning("File2 is given but difference is set to False. Plotting file1.")
+            add = False
+        elif len(files) > 1 and not (diff or add):
+            logger.warning("Multiple files are given but difference and add are set to False.")
+        if diff and add:
+            logger.warning("Both diff and add are set to True, setting add to False.")
+            add = False
         
         logger.debug("Importing data.")
 
-        self.obj = Open(file1)
-
-        self.objects = [self.obj]
-        if file2 is not None:
-            self.obj2 = Open(file2)
-            self.objects.append(self.obj2)
-        if file3 is not None:
-            self.obj3 = Open(file3)
-            self.objects.append(self.obj3)
-        if file4 is not None:
-            self.obj4 = Open(file4)
-            self.objects.append(self.obj4)
+        self.objects =  []
+        for k in range(len(files)):
+            obj = Open(files[k])
+            setattr(self, "obj" + str(k + 1), obj)
+            self.objects.append(getattr(self, "obj" + str(k + 1)))
         
         logger.debug("Adding attributes.")
 
@@ -126,16 +126,17 @@ class Plot:
         
         self.title = title
         self.diff = diff
+        self.add = add
         self.abs = absolute
         self.outfile = outfile
         self.fontweight = fontweight
 
         logger.debug("Creating time array.")
-        self.time = self.obj.get_time_array()
+        self.time = self.obj1.get_time_array()
 
         logger.debug("Decrypting status numberings.")
 
-        seafloor, stranded = get_status_info(self.obj.data)
+        seafloor, stranded = get_status_info(self.obj1.data)
         # self.ice_idx = ice
         self.seafloor_idx = seafloor
         self.stranded_idx = stranded
@@ -305,12 +306,13 @@ class Plot:
         h = self.depth
         
         logger.debug("Searching for bad trajectories.")
-        bad1 = self.clean_dataset(self.obj)
-        bad2 = []
-        if self.diff: bad2 = self.clean_dataset(self.obj2)
-        
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        bad = np.ravel(bad)
+
         logger.debug("Start calculating mass at given depth.")
-        mass1 = self.zone_crossing_event(self.obj, self.lons, self.lats, h, bad1, bad2)
+        mass1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad)
 
         if self.clip and not self.diff:
             mass1 = self.clip_array(np.copy(mass1))
@@ -319,7 +321,7 @@ class Plot:
 
         if self.diff:
             logger.debug("Start calculating mass at given depth for file2.")
-            mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad1, bad2)
+            mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad)
             logger.debug("Finished calculating mass at given depth for file2.")
 
             if self.abs:
@@ -329,16 +331,32 @@ class Plot:
             if self.clip:
                 mass = self.clip_array(np.copy(mass))
             m, mid, M = self.get_colormap_midpoint(mass)
-        
+        elif self.add:
+            logger.debug("Start calculating mass at given depth for other files.")
+            for obj in self.objects[1:]:
+                mass1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad)
+            logger.debug("Finished calculating mass at given depth for other files.")
+            mass = np.copy(mass1)
+            if self.clip:
+                mass = self.clip_array(np.copy(mass))
+        if self.diff or self.add:
+            NODATA = self.find_grid_cells_with_no_data(self.obj1)
+            mass[np.isnan(NODATA)] = np.nan
+        else:
+            NODATA = self.find_grid_cells_with_no_data(self.obj1)
+            mass1[np.isnan(NODATA)] = np.nan
         logger.debug("Start plotting")
         ax.coastlines(zorder = 3, resolution='10m')
 
-        if not self.diff:
-            sm = ax.contourf(self.lons, self.lats, mass1.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
+        extend = 'both' if self.clip else None
+
+        if not self.diff and not self.add:
+            sm = ax.contourf(self.lons, self.lats, mass1.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend=extend, extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         else:
-            cmap = self.shiftedColorMap(cmap, midpoint = mid, name='shifted')
-            sm = ax.contourf(self.lons, self.lats, mass.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend='both', extendfrac='auto')
+            if self.diff:
+                cmap = self.shiftedColorMap(cmap, midpoint = mid, name='shifted')
+            sm = ax.contourf(self.lons, self.lats, mass.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend = extend, extendfrac='auto')
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
             cb.set_label(f"{self.cb_units}")
@@ -365,6 +383,19 @@ class Plot:
         else:
             plt.show()
 
+    def find_grid_cells_with_no_data(self, obj):
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)[0, :]
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)[0, :]
+        X = np.zeros((len(self.lons), len(self.lats)))
+        for i in range(len(self.lats)):
+            for j in range(len(self.lons)):
+                if not np.any((lon == self.lons[j]) & (lat == self.lats[i])):
+                    X[j, i] = np.nan
+        return X
+    
     @staticmethod        
     def interpolate(x, y, x0):
         if np.any(x == x0):
@@ -377,7 +408,7 @@ class Plot:
         n = y2 - k * x2
         return k * x0 + n, idx2
     
-    def zone_crossing_event(self, obj:Open, lons, lats, depth, bad1, bad2):
+    def zone_crossing_event(self, obj:Open, lons, lats, depth, bad):
         
         """Calculate particle properties when crossing a certain depth."""
 
@@ -397,16 +428,16 @@ class Plot:
         status = np.ma.MaskedArray(status.data, status.mask, float)
         status = np.ma.filled(status, np.nan)
 
-        return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, self.seafloor_idx, bad1, bad2)
+        return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, self.seafloor_idx, bad)
 
     # @jit(nopython = True)
-    def mass_sum(self, lons, lats, depth, z, mass, lon, lat, status, sfidx, bad1, bad2):
+    def mass_sum(self, lons, lats, depth, z, mass, lon, lat, status, sfidx, bad):
         logger.debug("Start summing masses.")
         mass_at_depth = np.zeros((len(lons), len(lats)))
         for i in range(mass.shape[1]):
 
             #Remove bad particles.
-            if i in bad1 or i in bad2:
+            if i in bad:
                 continue
 
             drifter_trajectory = z[:, i]
@@ -448,7 +479,7 @@ class Plot:
             #Find closest position on grid.
             lon_grid = np.argmin(np.abs(lons - drifter_lon))
             lat_grid = np.argmin(np.abs(lats - drifter_lat))
-            if not self.diff and not self.abs:
+            if not self.diff and not self.abs and not self.add:
                 m/=m0
             mass_at_depth[lon_grid, lat_grid] = mass_at_depth[lon_grid, lat_grid] + m
         logger.debug("Finish summing masses.")
@@ -517,11 +548,11 @@ class Plot:
                 cmap = "Reds"
         
         logger.debug("Searching for bad trajectories.")
-        bad = self.clean_dataset(self.obj)
+        bad = self.clean_dataset(self.obj1)
 
         
         logger.debug("Start calculating distance.")
-        distance, in_cell, is_at_seafloor, is_stranded = self.calculate_horizontal_distance(self.obj, self.lons, self.lats, bad)
+        distance, in_cell, is_at_seafloor, is_stranded = self.calculate_horizontal_distance(self.obj1, self.lons, self.lats, bad)
         
         D = np.copy(distance)
         rows, cols = np.where(D == 0)
@@ -655,13 +686,13 @@ class Plot:
         fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.PlateCarree()}, figsize = self.figsize)
 
         logger.debug("Searching for bad trajectories.")
-        bad = self.clean_dataset(self.obj)
+        bad = self.clean_dataset(self.obj1)
         logger.debug("Reading required simulation properties.")
 
-        lon = self.obj.get_property("lon")
+        lon = self.obj1.get_property("lon")
         lon = np.ma.filled(lon, np.nan)
 
-        lat = self.obj.get_property("lat")
+        lat = self.obj1.get_property("lat")
         lat = np.ma.filled(lat, np.nan)
 
         # xticks = []
@@ -738,7 +769,7 @@ class Plot:
             self.prop2 = "mass"
                 
         lines = []
-        linestyles = ["solid", "dashed", "dotted", "dashdot"]
+        linestyles = ["solid", "dashed", "dotted", "dashdot", (0, (3, 5, 1, 5, 1, 5))]
         for i, j in self.loc:
             for k, obj in enumerate(self.objects):
                 lon = obj.get_property("lon")
@@ -771,7 +802,7 @@ class Plot:
                 if self.prop2 != "time":
                     y = obj.get_property(self.prop2)
                     y = np.ma.filled(y, np.nan)
-                    unitsy = "[" + self.obj.data[self.prop2].units + "]"
+                    unitsy = "[" + self.obj1.data[self.prop2].units + "]"
                 else:
                     y = self.create_timedelta_array(lon.shape[0])
                     unitsy = "[h]"
@@ -780,13 +811,17 @@ class Plot:
                     X = x
                 else:
                     X = x[:, idx]
+                    if not self.abs and self.prop1 == "mass":
+                        X /= X[0]
             
                 if self.prop2 == "time":
                     Y = y
                 else:
                     Y = y[:, idx]
+                    if not self.abs and self.prop2 == "mass":
+                        Y /= Y[0]
                 # color = next(self.ax._get_lines.prop_cycler)['color']
-                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyles[k % 4])
+                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyles[k % 5])
                 lines.append(line)
                 
         
@@ -818,7 +853,7 @@ class Plot:
 
         '''Return sum of mass over all grid points at given depth.'''
 
-        M = self.zone_crossing_event(self.obj, self.lons, self.lats, self.depth, self.clean_dataset(self.obj), [])
+        M = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, self.clean_dataset(self.obj1))
         if not self.abs:
             x = len(np.where(M > 0)[0])
         else:
@@ -828,7 +863,7 @@ class Plot:
     def get_biome_weighted_mass_at_depth(self):
         '''Return sum of mass over all grid points in the 4 biomes at given depth.'''
         logger.debug("Reading required simulation properties.")
-        obj = self.obj
+        obj = self.obj1
         z = obj.get_property('z')
         z = np.ma.filled(z, np.nan)
 
@@ -888,4 +923,4 @@ class Plot:
             mass_by_biomes[b] += m
         
         logger.debug("Finish summing masses.")
-        return mass_by_biomes, np.sum(mass_by_biomes) * 10 ** (-15)
+        return mass_by_biomes#, np.sum(mass_by_biomes) * 10 ** (-15)
