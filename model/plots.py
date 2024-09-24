@@ -3,7 +3,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button, CheckButtons
 from matplotlib import animation
-from matplotlib.gridspec import GridSpec
+from matplotlib import gridspec
 
 import matplotlib.ticker as mticker
 from matplotlib.lines import Line2D
@@ -860,10 +860,11 @@ class Plot:
             x = 1
         return np.sum(M[np.invert(np.isnan(M))]) / x
     
-    def get_biome_weighted_mass_at_depth(self):
+    def get_biome_weighted_mass_at_depth(self, obj = None):
         '''Return sum of mass over all grid points in the 4 biomes at given depth.'''
         logger.debug("Reading required simulation properties.")
-        obj = self.obj1
+        if obj is None:
+            obj = self.obj1
         z = obj.get_property('z')
         z = np.ma.filled(z, np.nan)
 
@@ -924,3 +925,164 @@ class Plot:
         
         logger.debug("Finish summing masses.")
         return mass_by_biomes#, np.sum(mass_by_biomes) * 10 ** (-15)
+    
+    def get_biome_mass_mean(self, obj):
+        logger.debug("Reading required simulation properties.")
+        z = obj.get_property('z')
+        z = np.ma.filled(z, np.nan)
+
+        mass = obj.get_property("mass")
+        mass = np.ma.filled(mass, np.nan)
+
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        biome = obj.get_property("origin_marker")
+        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
+        biome = np.ma.filled(biome, np.nan)
+
+        status = obj.get_property("status")
+        status = np.ma.MaskedArray(status.data, status.mask, float)
+        status = np.ma.filled(status, np.nan)
+
+        logger.debug("Start summing masses.")
+
+        depth = self.depth
+        mass_by_biomes = [[], [], [], []]
+        for i in range(mass.shape[1]):
+
+            drifter_trajectory = z[:, i]
+            drifter_mass = mass[:, i]
+            b = int(biome[0, i])
+
+            trajectory_nans = np.invert(np.isnan(drifter_trajectory))
+            
+            if type(depth) != str:
+                if np.min(drifter_trajectory[trajectory_nans])>depth:
+                    continue
+
+                m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
+            
+            else:
+                #Sea_floor.
+                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
+                # if len(bounce) > 0:
+                #     raise ValueError("Depth decreases.")
+                
+                s = status[:, i]
+                sea_floor = np.where(s == self.seafloor_idx)[0]
+                if len(sea_floor) >0:
+                    depth_idx = sea_floor[0]
+                else:
+                    depth_idx = len(drifter_trajectory)-1
+                m = drifter_mass[depth_idx]
+
+
+            if np.isnan(m):
+                continue
+            
+            mass_by_biomes[b].append(m)
+        
+        logger.debug("Finish summing masses.")
+        return np.asarray([np.mean(i) for i in mass_by_biomes])
+    
+    def get_biome_area(self, obj):
+        import pyproj
+        from shapely.geometry import box, Polygon
+        import geopandas as gpd
+
+        logger.debug("Reading required simulation properties.")
+
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)[0, :]
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)[0, :]
+
+        biome = obj.get_property("origin_marker")
+        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
+        biome = np.ma.filled(biome, np.nan)[0, :]
+        
+        dx = self.lons[1] - self.lons[0]
+        dy = self.lats[1] - self.lats[0]
+        proj = pyproj.Proj(proj='moll', ellps='WGS84')
+        # land_gdf = gpd.read_file('/home/peharicc/Documents/ocean_shapefile/ne_110m_ocean/ne_110m_ocean.shp')
+        # land_gdf = land_gdf.to_crs(proj.srs)
+        area = np.zeros(4)
+
+        for i in range(len(lon)):
+            # print(i, i/len(lon) * 100)
+            b = int(biome[i])
+            # cell = box(lon[i] - dx/2, lat[i] - dy/2, lon[i] + dx/2, lat[i] + dy/2)
+            # projected_cell = gpd.GeoSeries([cell], crs='EPSG:4326').to_crs(proj.srs)
+            # cell_gdf = gpd.GeoDataFrame(geometry=projected_cell)
+            # ocean_gdf = gpd.overlay(cell_gdf, land_gdf, how='difference')
+            # if not ocean_gdf.empty:
+            #     area[b] += ocean_gdf.geometry.area.sum() area = [5.53789079e+13 6.41213457e+13 8.44908314e+12 8.99898181e+12]
+            points = [(lat[i] - dy/2, lon[i] - dx/2), (lat[i] - dy/2, lon[i] + dx/2),
+                      (lat[i] + dy/2, lon[i] + dx/2), (lat[i] + dy/2, lon[i] - dx/2)]
+            projected_points = [proj(lon, lat) for lat, lon in points]
+            polygon = Polygon(projected_points)
+            area[b] += polygon.area
+        return area
+
+    def mean_export_biome_flux(self):
+        plt.close()
+        fig = plt.figure(figsize = self.figsize)
+        outer_grid = gridspec.GridSpec(1, 4, wspace=0.05)
+        ax = []
+        biome_titles = ["HCSS", "LC", "HCPS", "COAST"]
+        for i in range(4):
+            ax_outer = fig.add_subplot(outer_grid[i])
+            ax_outer.axis('off')
+            ax_outer.set_title(biome_titles[i], y = 1.05)
+            innergrid = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=outer_grid[i], wspace=0, hspace=0)
+            for j in range(2):
+                if not (i == 0 and j == 0):
+                    ax.append(plt.Subplot(fig, innergrid[j], sharey=ax[0]))
+                else:
+                    ax.append(plt.Subplot(fig, innergrid[j]))
+        area = self.get_biome_area(self.obj1)
+        # area = np.asarray([5.53789079e+13, 6.41213457e+13, 8.44908314e+12, 8.99898181e+12])
+        # print(area)
+        bottom = np.zeros(len(ax))
+        colors = ["green", "orange", "blue"]
+        for i, obj in enumerate(self.objects):
+            mass = self.get_biome_weighted_mass_at_depth(obj)
+            flux = mass / area
+            for k in range(4):
+                ax[i%2 + 2*k].bar(["Low", "Base", "High"], [0, flux[k], 0], bottom = bottom[i%2 + 2*k], color = colors[i // 2])
+                bottom[i%2 + 2*k]+=flux[k]
+        for i in range(len(ax)):
+            if i > 0:
+                ax[i].yaxis.set_tick_params(labelleft=False)
+            if i % 2 == 0:
+                ax[i].set_title("Carcasses", fontsize=15)
+            else:
+                ax[i].set_title("Fecal Matter", fontsize=15)
+            ax[i].tick_params(axis='x', labelrotation=30, labelsize = 15)
+            
+            fig.add_subplot(ax[i])
+        
+        if self.ylabel is not None:
+            ax[0].set_ylabel(f"{self.ylabel}")
+        
+        if self.legend:
+            lines = [mpl.patches.Patch(facecolor='green'),
+                     mpl.patches.Patch(facecolor='orange'),
+                     mpl.patches.Patch(facecolor='blue')]
+            fig.legend(lines, [f"{label}" for label in self.labels])
+        if self.xlim is not None: ax[0].set_xlim(*self.xlim)
+        if self.ylim is not None: ax[0].set_ylim(*self.ylim)
+        plt.tight_layout()        
+        
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+                
+
