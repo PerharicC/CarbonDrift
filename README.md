@@ -9,6 +9,11 @@ Open the terminal and clone CarbonDrift.
 ~$ git clone <path>
 ```
 
+## Required packages
+To run CarbonDrift the following packages shold be installed:
+1. opendrift
+2. numba
+
 ## Run a simulation
 ### Standard opendrift simulation
 To run a simulation one can follow the standard procedure of any opendrift submodule:

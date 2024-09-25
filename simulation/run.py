@@ -36,18 +36,19 @@ def main():
                     DAC has not been yet updated.")
     p.add_argument("-tmp", "--temperature", help="NetCDF temperature file.", type = str, required=True)
     p.add_argument("-c", "--current", help="NetCDF current file.", type = str, required=False)
-    p.add_argument("-o", "--outfile", type = str, default = "outfile.nc")
-    p.add_argument("-b", "--bathymetry", type = str, help = "NetCDF depth file.")
-    p.add_argument("-buff", "--temperaturebuffer", type = int, default=100, help ="OceanDRift vertical buffer size.\
-                   Only change if it is to small. ")
+    p.add_argument("-o", "--outfile", type = str, default = "outfile.nc", help = "NetCDF outfile path.")
+    p.add_argument("-b", "--bathymetry", type = str, help = "NetCDF depth file.", required=True)
+    p.add_argument("-buff", "--readerbuffer", type = int, default=100, help ="OceanDrift reader vertical buffer size.\
+                   Only change if it is to small.")
     p.add_argument("-s", "--starttime", type = valid_date, required  = False,
                    help = "Start time of simulation - format YYYY-MM-DD-h")
-    p.add_argument("-w0", "--initialvelocity", default = -0.01, type = float, help = "Initial velocity in m/s")
+    p.add_argument("-w0", "--initialvelocity", default = -0.01, type = float,
+                   help = "Initial velocity in m/s, positive up. Deafult is -0.01 m/s.")
     p.add_argument("-dist", "--distribution", required = False, default = "mass_sqrt",
-                   help = "Fragmentation dist function.")
-    p.add_argument("-f", "--fragmentation", action="store_false")
-    p.add_argument("-a", "--advection", action="store_false")
-    p.add_argument("-st", "--steps", default=200, type = int)
+                   help = "Fragmentation distribution function.")
+    p.add_argument("-f", "--fragmentation", action="store_false", help = "Set if fragmentation should be allowed.")
+    p.add_argument("-a", "--advection", action="store_false", help = "Set if horizontal advection should be allowed.")
+    p.add_argument("-st", "--steps", default=200, type = int, help = "Simulation steps.")
     p.add_argument("-dt", "--timestep",type = valid_time_step, default=timedelta(minutes = 30),
                    help = "Time step of simulation - format H:M:S" )
     p.add_argument("-d", "--decaytype", type = str, default="linear", choices=["linear", "exp"])

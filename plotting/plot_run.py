@@ -30,8 +30,8 @@ def configure_locations(s:str):
 
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
-    p.add_argument("method", type = str)
-    p.add_argument("files", nargs = "+", type = str)
+    p.add_argument("method", type = str, help = "Ploting method to call.")
+    p.add_argument("files", nargs = "+", type = str, help = "NetCDF filepaths to simulations.")
     p.add_argument("-lons", type = str, help=".txt file of longitude seed. If None -180:180:1")
     p.add_argument("-lats", type = str, help=".txt file of latitude seed. If None -90:90:1")
     p.add_argument("-cmap", type = str, required=False)
@@ -49,9 +49,9 @@ def main():
     p.add_argument("-fts", "--fontsize", type = int, default = 17)
     p.add_argument("-fwgt", "--fontweight", type = str, default="normal")
     p.add_argument("-d", "--depth", type = float, default=-200,
-                   help = "Depth at which calculation takes place. If >= 5000, it is set to sea floor.")
+                   help = "Depth at which calculation takes place. If >= 5000 (<=-5000), it is set to sea floor.")
     p.add_argument("-clip", type = str, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
-    p.add_argument("-sh", "--shrink", type = float, default=1)
+    p.add_argument("-sh", "--shrink", type = float, default=1, help = "Shrink colorbar value.")
     p.add_argument("-lines", "--loclines", action="store_true")
     p.add_argument("-loc", "--locations", type = str,
                    help = "Specific plotting locations - format lon1:lat1,lon2:lat2...")
@@ -63,14 +63,19 @@ def main():
     p.add_argument("-xlim", type = str, help = "Xlim - format xmin:xmax")
     p.add_argument("-ylim", type = str, help = "Ylim - format ymin:ymax")
     p.add_argument("-lw", "--linewidth", type = float)
-    p.add_argument("-legend", type = str, help="Legend - format label1, label2")
+    p.add_argument("-legend", type = str, help="Legend - format label1,label2")
 
     args = p.parse_args()
     return plot(**vars(args))
 
 def plot(**kwargs):
     plotmethod = kwargs.pop("method")
+    if not hasattr(Plot, plotmethod):
+        raise ValueError(f"Module Plot doesn't have specified method {plotmethod}.")
+    
     files = kwargs.pop("files", [])
+    if len(files) == 0:
+        raise ValueError(f"No simulation files have been provided.")
 
     lons = kwargs.pop("lons")
     lats = kwargs.pop("lats")

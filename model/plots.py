@@ -75,9 +75,6 @@ class Plot:
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None):
-
-        if len(files) == 0:
-            raise AttributeError("NO filepath is provided.")
         
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -1024,7 +1021,7 @@ class Plot:
             #     area[b] += ocean_gdf.geometry.area.sum() area = [5.53789079e+13 6.41213457e+13 8.44908314e+12 8.99898181e+12]
             points = [(lat[i] - dy/2, lon[i] - dx/2), (lat[i] - dy/2, lon[i] + dx/2),
                       (lat[i] + dy/2, lon[i] + dx/2), (lat[i] + dy/2, lon[i] - dx/2)]
-            projected_points = [proj(lon, lat) for lat, lon in points]
+            projected_points = [proj(k, j) for j, k in points]
             polygon = Polygon(projected_points)
             area[b] += polygon.area
         return area
@@ -1049,7 +1046,7 @@ class Plot:
         # area = np.asarray([5.53789079e+13, 6.41213457e+13, 8.44908314e+12, 8.99898181e+12])
         # print(area)
         bottom = np.zeros(len(ax))
-        colors = ["green", "orange", "blue"]
+        colors = ["blue", "orange", "green"]
         for i, obj in enumerate(self.objects):
             mass = self.get_biome_weighted_mass_at_depth(obj)
             flux = mass / area
