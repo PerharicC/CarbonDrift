@@ -1027,6 +1027,7 @@ class Plot:
         return area
 
     def mean_export_biome_flux(self):
+        logger.debug("Setting up figure.")
         plt.close()
         fig = plt.figure(figsize = self.figsize)
         outer_grid = gridspec.GridSpec(1, 4, wspace=0.05)
@@ -1042,17 +1043,28 @@ class Plot:
                     ax.append(plt.Subplot(fig, innergrid[j], sharey=ax[0]))
                 else:
                     ax.append(plt.Subplot(fig, innergrid[j]))
+        logger.debug("Figure set.")
+        logger.debug("Calculating area of biomes.")
         area = self.get_biome_area(self.obj1)
         # area = np.asarray([5.53789079e+13, 6.41213457e+13, 8.44908314e+12, 8.99898181e+12])
         # print(area)
-        bottom = np.zeros(len(ax))
+        bottom = np.zeros((len(ax), len(self.objects) // 8+1))
         colors = ["blue", "orange", "green"]
+        if self.xlabel is not None:
+            xticks = self.xlabel.split(",")
+        else:
+            xticks = np.arange(len(self.objects) // 8)
+        j = 0
         for i, obj in enumerate(self.objects):
             mass = self.get_biome_weighted_mass_at_depth(obj)
             flux = mass / area
             for k in range(4):
-                ax[i%2 + 2*k].bar(["Low", "Base", "High"], [0, flux[k], 0], bottom = bottom[i%2 + 2*k], color = colors[i // 2])
-                bottom[i%2 + 2*k]+=flux[k]
+                y = np.zeros(len(xticks))
+                y[j] = flux[k]
+                ax[i%2 + 2*k].bar(xticks, y, bottom = bottom[i%2 + 2*k], color = colors[(i%6) // 2])
+                bottom[i%2 + 2*k]+=y
+            if i % 6 == 5:
+                j+=1
         for i in range(len(ax)):
             if i > 0:
                 ax[i].yaxis.set_tick_params(labelleft=False)
@@ -1060,7 +1072,7 @@ class Plot:
                 ax[i].set_title("Carcasses", fontsize=15)
             else:
                 ax[i].set_title("Fecal Matter", fontsize=15)
-            ax[i].tick_params(axis='x', labelrotation=30, labelsize = 15)
+            ax[i].tick_params(axis='x', labelrotation=90, labelsize = 15)
             
             fig.add_subplot(ax[i])
         
@@ -1071,7 +1083,7 @@ class Plot:
             lines = [mpl.patches.Patch(facecolor='green'),
                      mpl.patches.Patch(facecolor='orange'),
                      mpl.patches.Patch(facecolor='blue')]
-            fig.legend(lines, [f"{label}" for label in self.labels])
+            fig.legend(lines, [f"{label}" for label in self.labels], loc = "center right")
         if self.xlim is not None: ax[0].set_xlim(*self.xlim)
         if self.ylim is not None: ax[0].set_ylim(*self.ylim)
         plt.tight_layout()        
@@ -1080,6 +1092,102 @@ class Plot:
             logger.debug("Saving output file.")
             plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
         else:
+            plt.show()     
+    
+    def animate_3D(self):
+        """
+        A 3d animation of the simulation.
+        
+        Parameters
+        ----------
+        k: float
+            The scale factor for markersize (default: 1)
+        outfile: str
+            File name for saved animation (default: None)"""
+        
+        plt.close()
+
+        fig = plt.figure(figsize=self.figsize)
+        ax = fig.add_subplot(projection='3d')
+        
+        logger.debug("Reading required simulation properties.")
+        lon = self.obj1.get_property('lon')
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = self.obj1.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        z = self.obj1.get_property('z')
+        z = np.ma.filled(z, np.nan)
+
+        mass = self.obj1.get_property("mass")
+        mass = np.ma.filled(mass, np.nan)
+        
+        logger.debug("Initialize colormap.")
+        if self.cmap is None:
+            logger.warning("Colormap hasn't been provided, using jet.")
+            cmap = mpl.cm.jet
+        else:
+            try:
+                cmap = getattr(mpl.cm, self.cmap)
+            except AttributeError:
+                logger.debug("Specified colormap doesn't exist, changing to jet.")
+                cmap = "jet"
+
+        k = 1 / mass[0, :]
+        dt = (self.time[1]-self.time[0]).total_seconds()
+        idx = np.where(np.invert(np.isnan(mass[1, :])))[0][0]
+        w0 = abs((z[1, idx] - z[0, idx]) * (mass[0, idx]/mass[1, idx]) ** (1/6) / dt)*24*3600
+        sc = ax.scatter(lon[0, :], lat[0, :], z[0, :], s=mass[0, :] * k, c = w0 * np.ones(len(mass[0, :])), cmap = cmap, vmin=0, vmax = w0)
+
+        
+        logger.debug("Setting up axes properties.")
+        ax.yaxis.labelpad=30
+        ax.xaxis.labelpad=30
+        ax.zaxis.labelpad=30
+        ax.set_xlabel("lon")
+        ax.set_ylabel("lat")
+        ax.set_zlabel("z")
+        xlim = [np.min(lon[np.invert(np.isnan(lon))]), np.max(lon[np.invert(np.isnan(lon))])]
+        ylim = [np.min(lat[np.invert(np.isnan(lat))]), np.max(lat[np.invert(np.isnan(lat))])]
+        zlim = [np.min(z[np.invert(np.isnan(z))]), np.max(z[np.invert(np.isnan(z))])]
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_zlim(*zlim)
+        ax.set_title(self.time[0])
+        ax.view_init(elev=10, azim=45, roll=0)
+
+        cb = plt.colorbar(sc, shrink = self.shrink)
+        cb.set_label(r"$|w(t)|\,\mathrm{[m\,day^{-1}]}$")
+
+        def update(i):
+            ax.cla()
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+            ax.set_zlim(*zlim)
+            ax.yaxis.labelpad=30
+            ax.xaxis.labelpad=30
+            ax.zaxis.labelpad=30
+            ax.set_xlabel("lon")
+            ax.set_ylabel("lat")
+            ax.set_zlabel("z")
+            idx = np.invert(np.isnan(lon[i, :]))
+            w = abs((z[i - 1, idx] - z[i, idx]) / dt)*24*3600
+            sc = ax.scatter(lon[i, idx], lat[i, idx], z[i, idx], s=mass[i, idx] * k[idx], c = w, cmap = cmap, vmin=0, vmax = w0)
+            cb.update_normal(sc)
+            ax.set_title(self.time[i])
+            ax.view_init(elev=10, azim=45, roll=0)
+
+        frames = len(self.time)
+
+        logger.debug("Initializing animation.")
+        anim=animation.FuncAnimation(fig, update, blit=False, frames = frames, interval=100)
+
+        if self.outfile is not None:
+            logger.debug("Adding PillowWriter to animation.")
+            writer = animation.PillowWriter(fps=10)
+            logger.debug("Saving animation.")
+            anim.save(self.outfile, writer = writer)
+        else:
             plt.show()
-                
 

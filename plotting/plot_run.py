@@ -71,7 +71,9 @@ def main():
 def plot(**kwargs):
     plotmethod = kwargs.pop("method")
     if not hasattr(Plot, plotmethod):
-        raise ValueError(f"Module Plot doesn't have specified method {plotmethod}.")
+        methods_list = [method for method in dir(Plot) if callable(getattr(Plot, method)) and not method.startswith("__")]
+        closest = methods_list[np.argmin([len(i.strip(plotmethod)) for i in methods_list])]
+        raise ValueError(f"Module Plot doesn't have specified method {plotmethod}. Did you mean {closest}?")
     
     files = kwargs.pop("files", [])
     if len(files) == 0:

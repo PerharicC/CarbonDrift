@@ -237,4 +237,22 @@ Constant_velocity_w0_=_100_m/d
 A possible output will look something like:
 
 ![](/images/current.png)
+
+6. **Sinking animation**
+
+To show and save a 3D animation of a simulation one should provide the following parameters to the .txt file:
+
+```
+animate_3D
+<file1 path>
+-fs
+12:8
+--shrink
+0.6
+-o
+./images/cnidaria_M_animation.gif
+```
+
+![](/images/cnidaria_M_animation.gif)
+
 **WORK IN PROGRESS**
