@@ -71,18 +71,11 @@ class RectangleSeed:
             lons, lats = self.lon, self.lat
         else:
             raise ValueError("Paramater skip must be >=1.")
-        
-        # self.N = len(lons) * len(lats)
-        
-        # if not os.path.isfile("lons{}.txt".format(self.s)):
-        #     np.savetxt("lons{}.txt".format(self.s), lons)
-        #     np.savetxt("lats{}.txt".format(self.s), lats)
-        # lats, lons = np.meshgrid(lats, lons)
         return lons, lats
     @staticmethod
-    def mask_grid(lons, lats, bathymetrypath, temperaturepath, biomegridpath):
+    def mask_grid(lons, lats, bathymetrypath, biomegridpath):
         depth = Dataset(bathymetrypath)["topo"][:]
-        tmp = Dataset(temperaturepath)["thetao"][0, :, :, :]
+        # tmp = Dataset(temperaturepath)["thetao"][0, :, :, :]
         biomegrid = np.load(biomegridpath)
         lon,lat = [], []
         lm = reader_global_landmask.Reader()
@@ -106,15 +99,12 @@ class RectangleSeed:
 
 class Seed:
 
-    def __init__(self, seedtype, seeddata = None, ncfile = None, skip = 1, bathymetrypath = None, poctype = None,
-                 phylum = None, lon = None, lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None):
+    def __init__(self, seedtype, skip = 1, bathymetrypath = None, poctype = None, phylum = None, lon = None,
+                 lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None):
         
         if seedtype == "rectangle":
-            if ncfile is None:
-                raise NameError("Missing netCDF file for seeding.")
-            
             o = RectangleSeed(skip)
-            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, ncfile, biomegridpath)
+            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, biomegridpath)
         elif seedtype == "line":
             if lon is None or lat is None:
                 raise ValueError("Missing lon, lat values for seeding.")
@@ -128,18 +118,6 @@ class Seed:
             self.mass = np.ones(len(self.lon))
             self.z = z
         
-        
-        if seeddata is None:
-            # self.mass = np.ones(len(self.lon))
-            self.r0 = np.ones(len(self.lon))
-        # elif microbialdecaytype == "mass":
-        #     self.mass = generate_mass_from_file(self.lon, self.lat, phylum, seeddata)
-        #     self.r0 = None
-        # else:
-        #     mass, r = generate_mass_from_random_genus(self.lon, self.lat, phylum, seeddata, weightspath, biomegridpath)
-        #     self.mass = mass
-        #     self.r0 = r
-        
         self.z = -np.abs(self.z)
         if outfile is not None:
             self.save_seed(outfile)
@@ -149,7 +127,6 @@ class Seed:
         data["lon"] = self.lon
         data["lat"] = self.lat
         data["mass"] = self.mass
-        data["r0"] = self.r0
         data["z"] = self.z
         if self.biome is not None:
             data["origin_marker"] = self.biome
@@ -161,19 +138,6 @@ class SeedFromFile:
         data = load_data(file)
         for keys, values in data.items():
             setattr(self, keys, values.values)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 """

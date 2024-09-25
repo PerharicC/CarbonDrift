@@ -42,10 +42,10 @@ class PrepareSimulation:
         bat = reader_netCDF_CF_generic.Reader(bathymetry, standard_name_mapping={"topo":"depth"})
         readers.append(bat)
         tmp = reader_netCDF_CF_generic.Reader(temperature)
-        if self.microbialdecaytype == "area":
-            sea_surface_temperature = tmp.get_variables_interpolated(["sea_water_temperature"], "sea_water_temperature", -1, time = self.p.object_init["starttime"],
-                                                lon = self.seeder.lon, lat = self.seeder.lat, z = -0.5)[0]["sea_water_temperature"].data
-            self.p.object_init["sea_surface_temperature"] = sea_surface_temperature
+        # if self.microbialdecaytype == "area":
+        #     sea_surface_temperature = tmp.get_variables_interpolated(["sea_water_temperature"], "sea_water_temperature", -1, time = self.p.object_init["starttime"],
+        #                                         lon = self.seeder.lon, lat = self.seeder.lat, z = -0.5)[0]["sea_water_temperature"].data
+        #     self.p.object_init["sea_surface_temperature"] = sea_surface_temperature
         tmp.verticalbuffer = temperaturebuffer
         tmp.always_valid = True
         readers.append(tmp)
@@ -66,7 +66,7 @@ class PrepareSimulation:
         if self.microbialdecaytype == "mass":
             self.obj = mcdgrid.GridRun(**self.p.object_init)
         elif self.microbialdecaytype == "area":
-            self.p.object_init["r0"] = self.seeder.r0
+            # self.p.object_init["r0"] = self.seeder.r0
             self.obj = acdgrid.GridRun(**self.p.object_init)
     
     def initialize_normal_run(self):
@@ -78,7 +78,7 @@ class PrepareSimulation:
         if self.microbialdecaytype == "mass":
             self.obj = mcd.CarbonDrift(**params.object_init)
         elif self.microbialdecaytype == "area":
-            params.object_init["r0"] = self.seeder.r0
+            # params.object_init["r0"] = self.seeder.r0
             self.obj = acd.CarbonDrift(**params.object_init)
 
         if advection:
@@ -98,5 +98,5 @@ class PrepareSimulation:
             self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z,
                                    mass = self.seeder.mass, time=time, origin_marker = origin_marker)
         elif self.microbialdecaytype == "area":
-            self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z, mass = self.seeder.mass,
-                                   jelly_radius = self.seeder.r0, time=time, origin_marker = origin_marker)
+            self.obj.seed_elements(lon=self.seeder.lon, lat = self.seeder.lat, z=self.seeder.z,
+                                   mass = self.seeder.mass, time=time, origin_marker = origin_marker)

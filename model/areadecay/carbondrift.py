@@ -29,7 +29,7 @@ class Carbon(Lagrangian3DArray):
 
     variables = Lagrangian3DArray.add_variables([
     ('mass', {'dtype': np.float32,
-                      'units': 'g',
+                      'units': 'unitless',
                       'default': 1})])
 
 
@@ -94,11 +94,13 @@ class CarbonDrift(OceanDrift):
         self.decay_stop = kwargs.pop("decay_stop", 0.)
         self.w0 = kwargs.pop("initial_velocity", -0.01)
         self.m0 = kwargs.pop("m0")
-        self.r0 = kwargs.pop("r0")
+        # self.r0 = kwargs.pop("r0")
+        # self.T0 = kwargs.pop("sea_surface_temperature")
         distribution = kwargs.pop("distribution", "mass_sqrt")
         self.max_ram = kwargs.pop("max_ram", None)
         self.max_num = kwargs.pop("max_num", None)
         self.decay_type = kwargs.pop("decay_type", "linear")
+        self.vertical_velocity_type = kwargs.pop("vertical_velocity_type", "variable")
         
         super(CarbonDrift, self).__init__(*args, **kwargs)
 
@@ -122,14 +124,16 @@ class CarbonDrift(OceanDrift):
         self.horizontal_advection = True
     
     def update(self):
-        if self.time == self.start_time:
-            self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
+        # if self.time == self.start_time:
+        #     self.k_lebrato = (self.T0 * 0.064 + 0.02) / (24 * 3600)
+            # self.deactivate_elements(self.environment.sea_water_temperature < 0, reason ="Ice")
         negative_temperature_idx = self.environment.sea_water_temperature < 0
         self.environment.sea_water_temperature[negative_temperature_idx] = 0
         if self.horizontal_advection and self.steps_calculation > 1:
             self.advect_ocean_current()
-
+        
         self.elements.mass = self.microbial_decay()
+        # self.elements.jelly_radius = self.update_radius()
         
         dz = self.time_step.total_seconds() * self.vertical_velocity()
 
@@ -168,9 +172,13 @@ class CarbonDrift(OceanDrift):
     def activate_horizontal_advection(self):
         self.horizontal_advection = True
 
-    def microbial_decay(self):
-        constants = 4 * np.pi * self.time_step.total_seconds() * self.r0[self.elements.ID - 1] ** 2 / self.m0[self.elements.ID - 1] ** (2 / 3)
-        return self.elements.mass ** (2/3) * (self.elements.mass ** (1 / 3) - constants * self.decay_coef()) 
+    def microbial_decay(self): #This is now unitless mass!!!
+        constants = self.time_step.total_seconds()# * self.m0[self.elements.ID - 1] ** (1/3)
+        return self.elements.mass ** (2/3) * (self.elements.mass ** (1 / 3) - constants * self.decay_coef())
+    
+    #TODO: Probably delete this soon:
+    def update_radius(self):
+        return self.r0[self.elements.ID - 1] * (self.elements.mass / self.m0[self.elements.ID - 1]) ** (1 / 3)
     
     def decay_coef(self):
 
@@ -181,6 +189,8 @@ class CarbonDrift(OceanDrift):
         return 0.140 * np.exp(0.145 * self.environment.sea_water_temperature) / (24 * 3600) #Return exponential decay.
     
     def vertical_velocity(self):
+        if self.vertical_velocity_type == "constant":
+            return self.w0
         return self.w0 * (self.elements.mass / self.m0[self.elements.ID - 1]) ** (1 / 6)
 
     def decay_check(self):
