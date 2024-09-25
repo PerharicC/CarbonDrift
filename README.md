@@ -11,17 +11,30 @@ Open the terminal and clone CarbonDrift.
 
 ## Run a simulation
 ### Standard opendrift simulation
-To run a simulation one can follow the standard procedureof any opendrift submodule:
+To run a simulation one can follow the standard procedure of any opendrift submodule:
 1. Create an object instance.
 2. Add readers, configures etc. 
 3. Seed elements at desired locations, depths, with appropriate masses etc.
 4. Run and save the simulation by calling the run() method.
 
 ### Automized method
-To run a CarbonDrift simulation from the terminal one can simply run the following comand in the root directory
+CarbonDrift also allows running and later plotting simulations straight from a terminal. To do this, however, data needs to be seeded to a pickle file, by running for example the following script:
+
+```python
+from simulation.seeding import Seed
+S = Seed("rectangle", bathymetrypath="./supplemetary_data/etopo2.nc",
+        outfile = <outfile.pkl path>, phylum = <phylum , e.g "chordata">,
+        initialmassdata="./supplementary_data/Luo_M_Eg_biome_data.json",
+        biomegridpath="./supplementary_data/biomegrid.npy", poctype = <POC TYPE: "M" OR "Eg">)
+```
+This calls the Seed class, which will save initial conditions used by Luo et al 2020 to a pickle outfile.
+
+Of course one can create his own pickle datafile, but the dataframe should contain the following keys: "lon", "lat", "mass", "z", while the values should be equal length numpy arrays or scalars (just as for normal opendrift simulations).
+
+To run a CarbonDrift simulation from the terminal one can now simply run the following comand in the root directory
 
 ```console
-~/CarbonDrift$ python -m simulation.run -tmp <temperature netcdf filepath> -b <bathimetry netcdf filepath> -s <starttime> -o <out netcdf filepath> 
+~/CarbonDrift$ python -m simulation.run -tmp <temperature netcdf filepath> -b <bathimetry netcdf filepath> -sdata <seed.pkl filepath> -s <starttime> -o <out netcdf filepath> -st <simulation steps>
 ```
 
 For further information on other arguments use header in terminal.
@@ -33,6 +46,8 @@ For further information on other arguments use header in terminal.
 <temperatuure netcdf filepath>
 -b
 <bathimetry netcdf filepath>
+-sdata
+<seed.pkl filepath>
 -s
 2010-01-01-0
 --steps
