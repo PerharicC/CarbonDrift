@@ -74,7 +74,7 @@ class Plot:
                  outfile = None, shrink = 1, clip = None, locations = None,
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
-                 legend = None):
+                 legend = None, areagridpath = f"./supplementary_data/area_grid.npy"):
         
         logger.debug("Setting up figure.")
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -150,6 +150,8 @@ class Plot:
         # else:
         #     self.loclines = loclines
         
+        self.areagridpath = areagridpath
+
         self.loc = locations
 
         self.prop1 = prop1
@@ -923,8 +925,11 @@ class Plot:
         logger.debug("Finish summing masses.")
         return mass_by_biomes#, np.sum(mass_by_biomes) * 10 ** (-15)
     
-    def get_biome_mass_mean(self, obj):
+    def get_mean_biome_mass_flux_at_depth(self, obj = None):
+        '''Return sum of mass flux (per area) over all grid points in the 4 biomes at a given depth.'''
         logger.debug("Reading required simulation properties.")
+        if obj is None:
+            obj = self.obj1
         z = obj.get_property('z')
         z = np.ma.filled(z, np.nan)
 
@@ -944,6 +949,8 @@ class Plot:
         status = obj.get_property("status")
         status = np.ma.MaskedArray(status.data, status.mask, float)
         status = np.ma.filled(status, np.nan)
+
+        area = self.load_area()
 
         logger.debug("Start summing masses.")
 
@@ -980,51 +987,16 @@ class Plot:
 
             if np.isnan(m):
                 continue
-            
-            mass_by_biomes[b].append(m)
+            A = area[np.where(self.lats == lat[0, i])[0][0], np.where(self.lons == lon[0, i])[0][0]]
+            if A == 0:
+                continue
+            mass_by_biomes[b].append(m / A)
         
         logger.debug("Finish summing masses.")
-        return np.asarray([np.mean(i) for i in mass_by_biomes])
+        return np.asarray([np.mean(i) for i in mass_by_biomes])#, np.sum(mass_by_biomes) * 10 ** (-15)
     
-    def get_biome_area(self, obj):
-        import pyproj
-        from shapely.geometry import box, Polygon
-        import geopandas as gpd
-
-        logger.debug("Reading required simulation properties.")
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)[0, :]
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)[0, :]
-
-        biome = obj.get_property("origin_marker")
-        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
-        biome = np.ma.filled(biome, np.nan)[0, :]
-        
-        dx = self.lons[1] - self.lons[0]
-        dy = self.lats[1] - self.lats[0]
-        proj = pyproj.Proj(proj='moll', ellps='WGS84')
-        # land_gdf = gpd.read_file('/home/peharicc/Documents/ocean_shapefile/ne_110m_ocean/ne_110m_ocean.shp')
-        # land_gdf = land_gdf.to_crs(proj.srs)
-        area = np.zeros(4)
-
-        for i in range(len(lon)):
-            # print(i, i/len(lon) * 100)
-            b = int(biome[i])
-            # cell = box(lon[i] - dx/2, lat[i] - dy/2, lon[i] + dx/2, lat[i] + dy/2)
-            # projected_cell = gpd.GeoSeries([cell], crs='EPSG:4326').to_crs(proj.srs)
-            # cell_gdf = gpd.GeoDataFrame(geometry=projected_cell)
-            # ocean_gdf = gpd.overlay(cell_gdf, land_gdf, how='difference')
-            # if not ocean_gdf.empty:
-            #     area[b] += ocean_gdf.geometry.area.sum() area = [5.53789079e+13 6.41213457e+13 8.44908314e+12 8.99898181e+12]
-            points = [(lat[i] - dy/2, lon[i] - dx/2), (lat[i] - dy/2, lon[i] + dx/2),
-                      (lat[i] + dy/2, lon[i] + dx/2), (lat[i] + dy/2, lon[i] - dx/2)]
-            projected_points = [proj(k, j) for j, k in points]
-            polygon = Polygon(projected_points)
-            area[b] += polygon.area
-        return area
+    def load_area(self):
+        return np.load(self.areagridpath)
 
     def mean_export_biome_flux(self):
         logger.debug("Setting up figure.")
@@ -1044,10 +1016,6 @@ class Plot:
                 else:
                     ax.append(plt.Subplot(fig, innergrid[j]))
         logger.debug("Figure set.")
-        logger.debug("Calculating area of biomes.")
-        area = self.get_biome_area(self.obj1)
-        # area = np.asarray([5.53789079e+13, 6.41213457e+13, 8.44908314e+12, 8.99898181e+12])
-        # print(area)
         bottom = np.zeros((len(ax), len(self.objects) // 8+1))
         colors = ["blue", "orange", "green"]
         if self.xlabel is not None:
@@ -1056,8 +1024,8 @@ class Plot:
             xticks = np.arange(len(self.objects) // 8)
         j = 0
         for i, obj in enumerate(self.objects):
-            mass = self.get_biome_weighted_mass_at_depth(obj)
-            flux = mass / area
+            flux = self.get_mean_biome_mass_flux_at_depth(obj)
+
             for k in range(4):
                 y = np.zeros(len(xticks))
                 y[j] = flux[k]
@@ -1080,9 +1048,9 @@ class Plot:
             ax[0].set_ylabel(f"{self.ylabel}")
         
         if self.legend:
-            lines = [mpl.patches.Patch(facecolor='green'),
+            lines = [mpl.patches.Patch(facecolor='blue'),
                      mpl.patches.Patch(facecolor='orange'),
-                     mpl.patches.Patch(facecolor='blue')]
+                     mpl.patches.Patch(facecolor='green')]
             fig.legend(lines, [f"{label}" for label in self.labels], loc = "center right")
         if self.xlim is not None: ax[0].set_xlim(*self.xlim)
         if self.ylim is not None: ax[0].set_ylim(*self.ylim)
@@ -1094,6 +1062,109 @@ class Plot:
         else:
             plt.show()     
     
+    def mass_flux_map(self):
+        """Plot the mass flux reached at given depth on world map.
+
+        Parameters
+        -----------
+        """
+
+        plt.close("all")
+        fig, ax = plt.subplots(1, 1, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
+        
+        logger.debug("Initialize colormap.")
+        if self.cmap is None:
+            if self.diff:
+                cmap = mpl.cm.RdBu_r
+            else:
+                cmap = mpl.cm.Reds
+        else:
+            try:
+                cmap = getattr(mpl.cm, self.cmap)
+            except AttributeError:
+                logger.debug("Specified colormap doesn't exist, changing to Reds.")
+                cmap = "Reds"
+        
+        h = self.depth
+        area = np.load(self.areagridpath).T
+        logger.debug("Searching for bad trajectories.")
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        bad = np.ravel(bad)
+
+        logger.debug("Start calculating mass at given depth.")
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad) / area
+
+        if self.clip and not self.diff:
+            flux1 = self.clip_array(np.copy(flux1))
+        
+        logger.debug("Finished calculating mass at given depth.")
+
+        if self.diff:
+            logger.debug("Start calculating mass at given depth for file2.")
+            flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad) / area
+            logger.debug("Finished calculating mass at given depth for file2.")
+
+            if self.abs:
+                flux = np.copy(flux1) - flux2
+            else:
+                flux= (np.copy(flux1) - flux2) / np.copy(flux1)
+            if self.clip:
+                flux = self.clip_array(np.copy(flux))
+            m, mid, M = self.get_colormap_midpoint(flux)
+        elif self.add:
+            logger.debug("Start calculating mass at given depth for other files.")
+            for obj in self.objects[1:]:
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad) / area
+            logger.debug("Finished calculating mass at given depth for other files.")
+            flux = np.copy(flux1)
+            if self.clip:
+                flux = self.clip_array(np.copy(flux))
+        if self.diff or self.add:
+            NODATA = self.find_grid_cells_with_no_data(self.obj1)
+            flux[np.isnan(NODATA)] = np.nan
+        else:
+            NODATA = self.find_grid_cells_with_no_data(self.obj1)
+            flux1[np.isnan(NODATA)] = np.nan
+        logger.debug("Start plotting")
+        ax.coastlines(zorder = 3, resolution='10m')
+
+        extend = 'both' if self.clip else None
+
+        if not self.diff and not self.add:
+            sm = ax.contourf(self.lons, self.lats, flux1.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend=extend, extendfrac='auto')
+            cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
+        else:
+            if self.diff:
+                cmap = self.shiftedColorMap(cmap, midpoint = mid, name='shifted')
+            sm = ax.contourf(self.lons, self.lats, flux.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1,extend = extend, extendfrac='auto')
+            cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
+        if self.cb_units is not None:
+            cb.set_label(f"{self.cb_units}")
+        if self.title is not None:
+            ax.set_title(self.title, fontweight = self.fontweight)
+
+        ax.add_feature(cartopy.feature.LAND, zorder=100, edgecolor='k', facecolor = "beige")
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+        # gl.xlocator = mticker.FixedLocator([-120, -60, 0, 60, 120])
+        # gl.ylocator = mticker.FixedLocator([-60, -30, 0, 30, 60])
+        # gl.xformatter = LONGITUDE_FORMATTER
+        # gl.yformatter = LATITUDE_FORMATTER
+        # ax.set_xticks([-120, -60, 0, 60, 120])
+        # ax.set_xticklabels([r"$-120^\circ$", r"$-60^\circ$", r"$0^\circ$", r"$60^\circ$", r"$120^\circ$"])
+        # ax.set_yticks([-60, -30, 0, 30, 60])
+        # ax.set_yticklabels([r"$-60^\circ$", r"$-30^\circ$", r"$0^\circ$", r"$30^\circ$", r"$60^\circ$"])
+
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+
     def animate_3D(self):
         """
         A 3d animation of the simulation.

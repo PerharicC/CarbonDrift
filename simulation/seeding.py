@@ -6,6 +6,9 @@ import pickle
 import pandas as pd
 import json
 from opendrift.readers import reader_global_landmask
+import pyproj
+from shapely.geometry import Polygon
+import utm
 
 
 def load_data(path):
@@ -50,6 +53,51 @@ def seed_like_Luo(bathymetrypath, lon, lat, phylum, biomegridpath, initialmassda
                 z.append(-50)
             else:
                 z.append(-20)
+    return np.asarray(m), np.asarray(z), np.asarray(biome_seed, dtype = np.int32)
+
+
+def constant_density_seed(bathymetrypath, areapath, lon, lat, phylum, biomegridpath, initialmassdata, poctype):
+    bmt = Dataset(bathymetrypath)
+    area = np.load(areapath)
+    biomes = np.load(biomegridpath)
+    biome_name_map = ["HCSS", "LC", "HCPS", "COAST"]
+    biome_grid_cell_area = [[], [], [], []]
+    
+    for phi, lam in zip(lat, lon):
+        i = np.where(bmt["lat"][:] == phi)[0][0]
+        j = np.where(bmt["lon"][:] == lam)[0][0]
+        if np.isnan(biomes[i, j]):
+            continue
+        biome_grid_cell_area[int(biomes[i, j])].append(area[i, j])
+    biome_areas = [sum(i) for i in biome_grid_cell_area]
+    # print(biome_areas)
+
+    z = []
+    m = []
+    biome_seed = []
+    biome_counter = [0, 0, 0, 0]
+    for phi, lam in zip(lat, lon):
+        i = np.where(bmt["lat"][:] == phi)[0][0]
+        j = np.where(bmt["lon"][:] == lam)[0][0]
+        depth = np.abs(bmt["topo"][i, j])
+        b = int(biomes[i, j])
+        biome_seed.append(b)
+        biome = biome_name_map[b]
+        m.append(initialmassdata[phylum.lower()][poctype][biome] * biome_grid_cell_area[b][biome_counter[b]] / biome_areas[b])
+        if depth < 30:
+            z.append(0)
+        elif depth < 60:
+            if phylum.lower() == "chordata":
+                z.append(-25)
+            else:
+                z.append(-10)
+        else:
+            if phylum.lower() == "chordata":
+                z.append(-50)
+            else:
+                z.append(-20)
+        biome_counter[b] += 1
+    
     return np.asarray(m), np.asarray(z), np.asarray(biome_seed, dtype = np.int32)
 
 class RectangleSeed:
@@ -99,8 +147,8 @@ class RectangleSeed:
 
 class Seed:
 
-    def __init__(self, seedtype, skip = 1, bathymetrypath = None, poctype = None, phylum = None, lon = None,
-                 lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None):
+    def __init__(self, seedtype, skip = 1, bathymetrypath = None, poctype = None, phylum = None, lon = None, areapath = None,
+                 lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None, constantdensity = False):
         
         if seedtype == "rectangle":
             o = RectangleSeed(skip)
@@ -112,7 +160,10 @@ class Seed:
             self.lon, self.lat = lon, lat
         
         if z is None:
-            self.mass, self.z, self.biome = seed_like_Luo(bathymetrypath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
+            if constantdensity:
+                self.mass, self.z, self.biome = constant_density_seed(bathymetrypath, areapath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
+            else:
+                self.mass, self.z, self.biome = seed_like_Luo(bathymetrypath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
         else:
             self.biome = None
             self.mass = np.ones(len(self.lon))
