@@ -1,6 +1,5 @@
 import numpy as np
 from numpy.random import random
-import scipy
 from opendrift.models.oceandrift import OceanDrift, Lagrangian3DArray
 from datetime import datetime, timedelta
 # import logging
@@ -468,8 +467,9 @@ class CarbonDrift(OceanDrift):
             self.export_buffer_length = self.expected_steps_output
         else:
             self.export_buffer_length = export_buffer_length
+        #TODO: Might have to change this when revisiting fragmentation!!! commented 2.10.2024
         if steps > 98:
-            self.export_buffer_length = steps + 2
+            self.export_buffer_length = self.expected_steps_output
         if self.time_step.days < 0:
             # For backwards simulation, we start at last seeded element
             logger.info('Backwards simulation, starting at '

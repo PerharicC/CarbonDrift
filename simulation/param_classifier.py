@@ -10,7 +10,7 @@ class Parameters:
     def classify(self, params):
 
         for key, value in params.items():
-            if key in ["temperature", "current", "bathymetry", "temperaturebuffer"]:
+            if key in ["temperature", "current", "bathymetry", "readerbuffer"]:
                 self.readers[key] = value
             elif key == "decaytype":
                 self.object_init["decay_type"] = value
@@ -24,6 +24,8 @@ class Parameters:
                 self.object_init[key] = value
             elif key == "timestep":
                 self.simulation_run["time_step"] = value
+            elif key == "timestepoutput":
+                self.simulation_run["time_step_output"] = value
             elif key in ["steps", "outfile"]:
                 self.simulation_run[key] = value
             else:

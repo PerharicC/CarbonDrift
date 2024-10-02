@@ -37,7 +37,7 @@ class PrepareSimulation:
         else:
             raise NameError(simulation_type + " has not yet been implemented.")
     
-    def prepare_readers(self, temperature, bathymetry, temperaturebuffer, current = None):
+    def prepare_readers(self, temperature, bathymetry, readerbuffer, current = None):
         readers = []
         bat = reader_netCDF_CF_generic.Reader(bathymetry, standard_name_mapping={"topo":"depth"})
         readers.append(bat)
@@ -46,12 +46,12 @@ class PrepareSimulation:
         #     sea_surface_temperature = tmp.get_variables_interpolated(["sea_water_temperature"], "sea_water_temperature", -1, time = self.p.object_init["starttime"],
         #                                         lon = self.seeder.lon, lat = self.seeder.lat, z = -0.5)[0]["sea_water_temperature"].data
         #     self.p.object_init["sea_surface_temperature"] = sea_surface_temperature
-        tmp.verticalbuffer = temperaturebuffer
+        tmp.verticalbuffer = readerbuffer
         tmp.always_valid = True
         readers.append(tmp)
         if current is not None:
             curr = reader_netCDF_CF_generic.Reader(current)
-            curr.verticalbuffer = temperaturebuffer
+            curr.verticalbuffer = readerbuffer
             # curr.always_valid = True
             readers.append(curr)
         readers.append(reader_global_landmask.Reader())

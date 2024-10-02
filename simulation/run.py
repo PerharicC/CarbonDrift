@@ -51,6 +51,8 @@ def main():
     p.add_argument("-st", "--steps", default=200, type = int, help = "Simulation steps.")
     p.add_argument("-dt", "--timestep",type = valid_time_step, default=timedelta(minutes = 30),
                    help = "Time step of simulation - format H:M:S" )
+    p.add_argument("-dto", "--timestepoutput",type = valid_time_step, default=timedelta(minutes = 30),
+                   help = "Output time step of simulation - format H:M:S" )
     p.add_argument("-d", "--decaytype", type = str, default="linear", choices=["linear", "exp"])
     p.add_argument("-log", "--loglevel", default = 0, type = int)
     p.add_argument("-oceanonly", action="store_true")
