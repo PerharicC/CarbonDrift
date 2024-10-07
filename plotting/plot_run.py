@@ -64,6 +64,8 @@ def main():
     p.add_argument("-ylim", type = str, help = "Ylim - format ymin:ymax")
     p.add_argument("-lw", "--linewidth", type = float)
     p.add_argument("-legend", type = str, help="Legend - format label1,label2")
+    p.add_argument("-color", type = str, help = "Plot color - format color1,color2,color3...")
+    p.add_argument("-ls", "--linestyle", type = str, help = "Plot linestlyes - format ls1,ls2,ls3...")
 
     args = p.parse_args()
     return plot(**vars(args))

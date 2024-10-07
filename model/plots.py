@@ -67,7 +67,7 @@ def get_status_info(data):
 
 class Plot:
 
-    def __init__(self, *files, cmap = None,
+    def __init__(self, *files, cmap = None, color = None, linestyle = None,
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200, add = False,
                  diff = True, absolute = False, fontweight = "normal",
@@ -110,6 +110,15 @@ class Plot:
         
         self.depth = depth
         self.cmap = cmap
+        if color is None:
+            self.color = None
+        else:
+            self.color = color.split(",")
+        if linestyle is None:
+            self.linestyle = ["solid", "dashed", "dotted", "dashdot", (0, (3, 5, 1, 5, 1, 5))]
+        else:
+            self.linestyle = linestyle.split(",")
+        
         if lons is None:
             logger.warning("Lons is not given - asumming 1 degree resolution over all space.")
             lons = np.arange(-180, 180, 1)
@@ -769,7 +778,7 @@ class Plot:
             self.prop2 = "mass"
                 
         lines = []
-        linestyles = ["solid", "dashed", "dotted", "dashdot", (0, (3, 5, 1, 5, 1, 5))]
+
         for i, j in self.loc:
             for k, obj in enumerate(self.objects):
                 lon = obj.get_property("lon")
@@ -820,8 +829,13 @@ class Plot:
                     Y = y[:, idx]
                     if not self.abs and self.prop2 == "mass":
                         Y /= Y[0]
-                # color = next(self.ax._get_lines.prop_cycler)['color']
-                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyles[k % 5])
+                
+                if self.color is not None:
+                    color = self.color[k % len(self.color)]
+                else:
+                    color = None
+                linestyle = self.linestyle[k % len(self.linestyle)]
+                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyle, color = color)
                 lines.append(line)
                 
         
