@@ -66,6 +66,9 @@ def main():
     p.add_argument("-legend", type = str, help="Legend - format label1,label2")
     p.add_argument("-color", type = str, help = "Plot color - format color1,color2,color3...")
     p.add_argument("-ls", "--linestyle", type = str, help = "Plot linestlyes - format ls1,ls2,ls3...")
+    p.add_argument("-bins", type = int, help = "Histogram bins.")
+    p.add_argument("-group", type = str, default="none", 
+                   choices=["none", "biome", "lonmean", "latmean"], help = "Group cells by.")
 
     args = p.parse_args()
     return plot(**vars(args))

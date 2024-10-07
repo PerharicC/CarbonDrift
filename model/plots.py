@@ -71,16 +71,17 @@ class Plot:
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200, add = False,
                  diff = True, absolute = False, fontweight = "normal",
-                 outfile = None, shrink = 1, clip = None, locations = None,
+                 outfile = None, shrink = 1, clip = None, locations = None, bins = None,
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
-                 legend = None, areagridpath = f"./supplementary_data/area_grid.npy"):
+                 legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
+                 biomegridpath = f"./supplementary_data/biomegrid.npy", group = None):
         
         logger.debug("Setting up figure.")
+        plt.rcParams.update({'font.size': fontsize})
         fig, ax = plt.subplots(1, 1, figsize = figsize)
         self.fig = fig
         self.ax = ax
-        plt.rcParams.update({'font.size': fontsize})
         
         if len(files) == 1 and (diff or add):
             logger.warning("Only one filepath given, changing diff and add to False.")
@@ -110,6 +111,7 @@ class Plot:
         
         self.depth = depth
         self.cmap = cmap
+        self.bins = bins
         if color is None:
             self.color = None
         else:
@@ -160,7 +162,8 @@ class Plot:
         #     self.loclines = loclines
         
         self.areagridpath = areagridpath
-
+        self.biomegridpath = biomegridpath
+        self.group = group
         self.loc = locations
 
         self.prop1 = prop1
@@ -1309,3 +1312,68 @@ class Plot:
             plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
         else:
             plt.show()
+    
+    def mass_flux_distribution(self):
+        area = np.load(self.areagridpath).T
+        logger.debug("Searching for bad trajectories.")
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        bad = np.ravel(bad)
+
+        logger.debug("Start calculating mass at given depth.")
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad) / area
+        if self.add:
+            logger.debug("Start calculating mass at given depth for other files.")
+            for obj in self.objects[1:]:
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad) / area
+            logger.debug("Finished calculating mass at given depth for other files.")
+        flux = np.copy(flux1)
+        flux[np.isnan(flux)] = 0
+        flux_mask = flux == 0
+        if self.group is None or self.group == "none":
+            if self.color is not None:
+                color = self.color[0]
+            else:
+                color = None
+            self.ax.hist(flux[np.invert(flux_mask)], bins=self.bins, color = color, density = True)
+        elif self.group == "biome":
+            biome_names = ["HCSS", "LC", "HCPS", "COAST"]
+            biomes = np.load(self.biomegridpath).T
+            for i in range(4):
+                if self.color is not None:
+                    color = self.color[i % len(self.color)]
+                else:
+                    color = None
+                mask = np.invert(flux_mask) & (biomes == i)
+                self.ax.hist(flux[mask], bins = self.bins, color = color, alpha = 0.8, label = biome_names[i], density=True)
+            self.ax.legend()
+        elif self.group in ["lonmean", "latmean"]:
+            if self.color is not None:
+                color = self.color[0]
+            else:
+                color = None
+            flux = np.ma.array(data = flux, mask = flux_mask)
+            self.ax.hist(np.ma.mean(flux, axis = 0 if self.group == "lonmean" else 1), bins = self.bins, color = color, density=True)
+        
+        if self.xlabel is None:
+            self.ax.set_xlabel("C flux [g C Y^-1 m^-2]")
+        else:
+            self.ax.set_xlabel(f"{self.xlabel}")
+        if self.ylabel is None:
+            self.ax.set_ylabel("probability density")
+        else:
+            self.ax.set_ylabel(f"{self.ylabel}")
+
+        if self.title is not None:
+            self.ax.set_title(self.title)
+
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+            
+
