@@ -565,15 +565,16 @@ class Plot:
             D = self.clip_array(np.copy(D))
         
         sm = ax.contourf(self.lons, self.lats, D.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1, extend = "max")
-        ax.contour(self.lons, self.lats, in_cell.T, levels = 0, transform = ccrs.PlateCarree(), colors = "red")
+        # ax.contour(self.lons, self.lats, in_cell.T, levels = 0, transform = ccrs.PlateCarree(), colors = "red")
         ax.contour(self.lons, self.lats, is_at_seafloor.T, levels = 1, transform = ccrs.PlateCarree(), colors = "black", label = "seafloor")
-        ax.contour(self.lons, self.lats, is_stranded.T, levels = 1, transform = ccrs.PlateCarree(), colors = "orange", label = "stranded")
+        # ax.contour(self.lons, self.lats, is_stranded.T, levels = 1, transform = ccrs.PlateCarree(), colors = "orange", label = "stranded")
         
-        incell_label = Line2D([0], [0], color='red', lw=2)
+        # incell_label = Line2D([0], [0], color='red', lw=2)
         seafloor_label = Line2D([0], [0], color='black', lw=2)
-        stranded_label = Line2D([0], [0], color='orange', lw=2)
+        # stranded_label = Line2D([0], [0], color='orange', lw=2)
 
-        ax.legend([incell_label, seafloor_label, stranded_label], ['moved out of cell', "seafloor", "stranded"], loc='upper right')
+        # ax.legend([incell_label, seafloor_label, stranded_label], ['moved out of cell', "seafloor", "stranded"], loc='upper right')
+        ax.legend([seafloor_label], ["seafloor"], loc="upper right")
 
         cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
@@ -1262,3 +1263,35 @@ class Plot:
         else:
             plt.show()
 
+    def mean_lon_mass_flux(self):
+        area = np.load(self.areagridpath).T
+        logger.debug("Searching for bad trajectories.")
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        bad = np.ravel(bad)
+
+        logger.debug("Start calculating mass at given depth.")
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad) / area
+        if self.add:
+            logger.debug("Start calculating mass at given depth for other files.")
+            for obj in self.objects[1:]:
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad) / area
+            logger.debug("Finished calculating mass at given depth for other files.")
+        flux = np.copy(flux1)
+        flux[np.isnan(flux)] = 0
+        flux_mask = flux == 0
+        # flux = np.ma.array(data = flux, mask = flux_mask)
+        mean_lon_flux = np.ma.mean(flux, axis = 0)
+        # print(mean_lon_flux.shape)
+        plt.plot(mean_lon_flux, self.lats, color = "black", linewidth = self.lw)
+        plt.xlabel(self.xlabel, fontsize = 17)
+        plt.ylabel(self.ylabel, fontsize = 17)
+        
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
