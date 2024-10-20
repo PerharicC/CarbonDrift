@@ -26,7 +26,7 @@ class Parameters:
                 self.simulation_run["time_step"] = value
             elif key == "timestepoutput":
                 self.simulation_run["time_step_output"] = value
-            elif key in ["steps", "outfile"]:
+            elif key in ["steps", "outfile", "export_variables"]:
                 self.simulation_run[key] = value
             else:
                 raise Warning("Got an unexpected parameter: " + key)

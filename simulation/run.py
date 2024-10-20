@@ -29,6 +29,36 @@ def save_params(path, params):
     with open(new_path, "w") as file:
         json.dump(p, file, indent=4, default=str)
 
+def valid_export_variables(s):
+    valid_vars = ["trajectory", "time", "status", "moving", "age_seconds", "origin_marker",
+                  "lon", "lat", "z", "wind_drift_factor", "current_drift_factor",
+                  "terminal_velocity", "mass", "x_sea_water_velocity", "y_sea_water_velocity",
+                  "land_binary_mask", "sea_water_temperature", "depth"]
+    
+    try:
+        level = int(s)
+        if level == 0:
+            return valid_vars
+        elif level == 1:
+            return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass",
+                    "x_sea_water_velocity", "y_sea_water_velocity", "sea_water_temperature", "depth"]
+        elif level == 2:
+            return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass", "sea_water_temperature", "depth"]
+        elif level >= 3:
+            return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass", "sea_water_temperature"]
+    except ValueError:
+        pass
+
+    try:
+        variables = s.split(",")
+    except Exception:
+        raise argparse.ArgumentTypeError(f"not a valid export variables format: {s!r}")
+    
+    for  var in variables:
+        if var not in valid_vars:
+            raise argparse.ArgumentError(f"Export variable {var} is not a valid CarbonDrift variable.")
+        return variables
+
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument("-sim", "--simulation_type", default="normal", choices=["normal", "grid", "DAC"],
@@ -59,6 +89,8 @@ def main():
     p.add_argument("-sdata", "--seeddata", type = str, help = "Path to initial seed data.")
     p.add_argument("-mdtype", "--microbialdecaytype", type = str, default="mass", choices = ["mass", "area"])
     p.add_argument("-wtype", "--vertical_velocity_type", type = str, choices = ["constant", "variable"], default = "variable")
+    p.add_argument("-ev", "--export_variables", type = valid_export_variables, default=valid_export_variables("0"),
+    help = "Export variables. Either separate variables with , or specify export level with number (0 for all variables (default)).")
     args = p.parse_args()
     run_simulation(**vars(args))
 
