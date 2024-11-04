@@ -70,12 +70,12 @@ class Plot:
     def __init__(self, *files, cmap = None, color = None, linestyle = None,
                  lons = None, lats = None, figsize = (20, 20),
                  fontsize = 17, title = None, depth = -200, add = False,
-                 diff = True, absolute = False, fontweight = "normal",
+                 diff = True, absolute = False, fontweight = "normal", diffidx = None,
                  outfile = None, shrink = 1, clip = None, locations = None, bins = None,
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
-                 biomegridpath = f"./supplementary_data/biomegrid.npy", group = None):
+                 biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None):
         
         logger.debug("Setting up figure.")
         plt.rcParams.update({'font.size': fontsize})
@@ -89,9 +89,9 @@ class Plot:
             add = False
         elif len(files) > 1 and not (diff or add):
             logger.warning("Multiple files are given but difference and add are set to False.")
-        if diff and add:
-            logger.warning("Both diff and add are set to True, setting add to False.")
-            add = False
+        if diff and add and diffidx is None:
+            logger.warning("Both diff and add are set to True, but diffidx is None. Setting diffidx to half the number of files.")
+            diffidx = len(files) // 2
         
         logger.debug("Importing data.")
 
@@ -135,6 +135,7 @@ class Plot:
         self.title = title
         self.diff = diff
         self.add = add
+        self.diffidx = diffidx
         self.abs = absolute
         self.outfile = outfile
         self.fontweight = fontweight
@@ -331,17 +332,31 @@ class Plot:
         logger.debug("Finished calculating mass at given depth.")
 
         if self.diff:
-            logger.debug("Start calculating mass at given depth for file2.")
-            mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad)
-            logger.debug("Finished calculating mass at given depth for file2.")
+            if not self.add:
+                logger.debug("Start calculating mass at given depth for file2.")
+                mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad)
+                logger.debug("Finished calculating mass at given depth for file2.")
 
-            if self.abs:
-                mass = np.copy(mass1) - mass2
+                if self.abs:
+                    mass = np.copy(mass1) - mass2
+                else:
+                    mass = (np.copy(mass1) - mass2) / np.copy(mass1)
+                if self.clip:
+                    mass = self.clip_array(np.copy(mass))
+                m, mid, M = self.get_colormap_midpoint(mass)
             else:
-                mass = (np.copy(mass1) - mass2) / np.copy(mass1)
-            if self.clip:
-                mass = self.clip_array(np.copy(mass))
-            m, mid, M = self.get_colormap_midpoint(mass)
+                mass2 = np.zeros(mass1.shape)
+                for i in range(1, self.diffidx):
+                    mass1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad)
+                for i in range(self.diffidx, len(self.objects)):
+                    mass2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad)
+                if self.abs:
+                    mass = np.copy(mass1) - mass2
+                else:
+                    mass = (np.copy(mass1) - mass2) / np.copy(mass1)
+                if self.clip:
+                    mass = self.clip_array(np.copy(mass))
+                m, mid, M = self.get_colormap_midpoint(mass)
         elif self.add:
             logger.debug("Start calculating mass at given depth for other files.")
             for obj in self.objects[1:]:
@@ -1105,6 +1120,11 @@ class Plot:
         
         h = self.depth
         area = np.load(self.areagridpath).T
+        i = np.where(np.arange(-180, 180, 1) == np.min(self.lons))[0][0]
+        j = np.where(np.arange(-180, 180, 1) == np.max(self.lons))[0][0]
+        k = np.where(np.arange(-90, 90, 1) == np.min(self.lats))[0][0]
+        l = np.where(np.arange(-90, 90, 1) == np.max(self.lats))[0][0]
+        area = area[i:j+1, k:l+1]
         logger.debug("Searching for bad trajectories.")
         bad = []
         for i in range(len(self.objects)):
@@ -1120,17 +1140,31 @@ class Plot:
         logger.debug("Finished calculating mass at given depth.")
 
         if self.diff:
-            logger.debug("Start calculating mass at given depth for file2.")
-            flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad) / area
-            logger.debug("Finished calculating mass at given depth for file2.")
+            if not self.add:
+                logger.debug("Start calculating mass at given depth for file2.")
+                flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad) / area
+                logger.debug("Finished calculating mass at given depth for file2.")
 
-            if self.abs:
-                flux = np.copy(flux1) - flux2
+                if self.abs:
+                    flux = np.copy(flux1) - flux2
+                else:
+                    flux= (np.copy(flux1) - flux2) / np.copy(flux1)
+                if self.clip:
+                    flux = self.clip_array(np.copy(flux))
+                m, mid, M = self.get_colormap_midpoint(flux)
             else:
-                flux= (np.copy(flux1) - flux2) / np.copy(flux1)
-            if self.clip:
-                flux = self.clip_array(np.copy(flux))
-            m, mid, M = self.get_colormap_midpoint(flux)
+                flux2 = np.zeros(flux1.shape)
+                for i in range(1, self.diffidx):
+                    flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+                for i in range(self.diffidx, len(self.objects)):
+                    flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+                if self.abs:
+                    flux = np.copy(flux1) - flux2
+                else:
+                    flux= (np.copy(flux1) - flux2) / np.copy(flux1)
+                if self.clip:
+                    flux = self.clip_array(np.copy(flux))
+                m, mid, M = self.get_colormap_midpoint(flux)
         elif self.add:
             logger.debug("Start calculating mass at given depth for other files.")
             for obj in self.objects[1:]:

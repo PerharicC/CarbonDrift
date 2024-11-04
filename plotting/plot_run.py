@@ -69,6 +69,7 @@ def main():
     p.add_argument("-bins", type = int, help = "Histogram bins.")
     p.add_argument("-group", type = str, default="none", 
                    choices=["none", "biome", "lonmean", "latmean"], help = "Group cells by.")
+    p.add_argument("-diffidx", type = int)
 
     args = p.parse_args()
     return plot(**vars(args))
