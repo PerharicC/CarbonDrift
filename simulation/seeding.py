@@ -63,14 +63,15 @@ def constant_density_seed(bathymetrypath, areapath, lon, lat, phylum, biomegridp
     biome_name_map = ["HCSS", "LC", "HCPS", "COAST"]
     biome_grid_cell_area = [[], [], [], []]
     
-    for phi, lam in zip(lat, lon):
-        i = np.where(bmt["lat"][:] == phi)[0][0]
-        j = np.where(bmt["lon"][:] == lam)[0][0]
-        if np.isnan(biomes[i, j]):
-            continue
-        biome_grid_cell_area[int(biomes[i, j])].append(area[i, j])
+    for phi in np.arange(-90, 90, 1):
+        for lam in np.arange(-180, 180, 1):
+            i = np.where(bmt["lat"][:] == phi)[0][0]
+            j = np.where(bmt["lon"][:] == lam)[0][0]
+            if np.isnan(biomes[i, j]):
+                continue
+            biome_grid_cell_area[int(biomes[i, j])].append(area[i, j])
     biome_areas = [sum(i) for i in biome_grid_cell_area]
-    # print(biome_areas)
+    # print(np.asarray(biome_areas) / 10 ** 14)
 
     z = []
     m = []
@@ -83,7 +84,10 @@ def constant_density_seed(bathymetrypath, areapath, lon, lat, phylum, biomegridp
         b = int(biomes[i, j])
         biome_seed.append(b)
         biome = biome_name_map[b]
-        m.append(initialmassdata[phylum.lower()][poctype][biome] * biome_grid_cell_area[b][biome_counter[b]] / biome_areas[b])
+        if type(initialmassdata) == float:
+            m.append(1)
+        else:
+            m.append(initialmassdata[phylum.lower()][poctype][biome] * biome_grid_cell_area[b][biome_counter[b]] / biome_areas[b])
         if depth < 30:
             z.append(0)
         elif depth < 60:
@@ -102,24 +106,10 @@ def constant_density_seed(bathymetrypath, areapath, lon, lat, phylum, biomegridp
 
 class RectangleSeed:
 
-    def __init__(self, skip = 1):
-        self.lat = np.arange(-90, 90, 1)
-        self.lon = np.arange(-180, 180, 1)
-        self.s = skip
-        
+    def __init__(self, latmnin = -90, latmax = 90, lonmin = -180, lonmax = 180, dx = 1, dy = 1):
+        self.lat = np.arange(latmnin, latmax, dx)
+        self.lon = np.arange(lonmin, lonmax, dy)
     
-    def grid(self):
-        if self.s > 1:
-            latmin, latmax = np.min(self.lat), np.max(self.lat)
-            lonmin, lonmax = np.min(self.lon), np.max(self.lon)
-
-            lons = np.linspace(lonmin, lonmax, len(self.lon) // self.s)
-            lats = np.linspace(latmin, latmax, len(self.lat) // self.s)
-        elif self.s == 1:
-            lons, lats = self.lon, self.lat
-        else:
-            raise ValueError("Paramater skip must be >=1.")
-        return lons, lats
     @staticmethod
     def mask_grid(lons, lats, bathymetrypath, biomegridpath):
         depth = Dataset(bathymetrypath)["topo"][:]
@@ -131,10 +121,12 @@ class RectangleSeed:
         for i in range(len(lats)):
             for j in range(len(lons)):
                 land = lm.get_variables("land_binary_mask", y =np.asarray([lats[i]]), x =np.asarray([lons[j]]))["land_binary_mask"]
+                k = np.where(np.arange(-90, 90, 1) == lats[i])[0][0]
+                l = np.where(np.arange(-180, 180, 1) == lons[j])[0][0]
                 if not land:
-                    if depth[i, j] > 0:
+                    if depth[k, l] > 0:
                         continue
-                    if np.isnan(biomegrid[i, j]):
+                    if np.isnan(biomegrid[k, l]):
                         continue
                     # if tmp.mask[0, i, j]:
                     #     continue
@@ -147,12 +139,13 @@ class RectangleSeed:
 
 class Seed:
 
-    def __init__(self, seedtype, skip = 1, bathymetrypath = None, poctype = None, phylum = None, lon = None, areapath = None,
+    def __init__(self, seedtype, latmin = -90, latmax = 90, lonmin = -180, lonmax = 180, dx = 1, dy = 1,
+                 bathymetrypath = None, poctype = None, phylum = None, lon = None, areapath = None,
                  lat = None, z = None, outfile = None, biomegridpath = None, initialmassdata = None, constantdensity = False):
         
         if seedtype == "rectangle":
-            o = RectangleSeed(skip)
-            self.lon, self.lat = o.mask_grid(*o.grid(), bathymetrypath, biomegridpath)
+            o = RectangleSeed(latmin, latmax, lonmin, lonmax, dx, dy)
+            self.lon, self.lat = o.mask_grid(o.lon, o.lat, bathymetrypath, biomegridpath)
         elif seedtype == "line":
             if lon is None or lat is None:
                 raise ValueError("Missing lon, lat values for seeding.")
@@ -161,7 +154,11 @@ class Seed:
         
         if z is None:
             if constantdensity:
-                self.mass, self.z, self.biome = constant_density_seed(bathymetrypath, areapath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
+                if initialmassdata is None:
+                    mass = 1.
+                else:
+                    mass = load_json_data(initialmassdata)
+                self.mass, self.z, self.biome = constant_density_seed(bathymetrypath, areapath, self.lon, self.lat, phylum, biomegridpath, mass, poctype)
             else:
                 self.mass, self.z, self.biome = seed_like_Luo(bathymetrypath, self.lon, self.lat, phylum, biomegridpath, load_json_data(initialmassdata), poctype)
         else:
