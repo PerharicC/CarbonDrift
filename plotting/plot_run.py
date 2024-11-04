@@ -12,6 +12,9 @@ def valid_figsize(s:str):
 def configure_title(s:str):
     return s.replace("_", " ")
 
+def configure_suptitles(s:str):
+    return s.split(",")
+
 def configure_locations(s:str):
     split = s.split(",")
     proper_format_locs = []
@@ -70,6 +73,10 @@ def main():
     p.add_argument("-group", type = str, default="none", 
                    choices=["none", "biome", "lonmean", "latmean"], help = "Group cells by.")
     p.add_argument("-diffidx", type = int)
+    p.add_argument("-mc", "--martincurve", type = float,
+                   help="Martin curve coefficient. If None, it will not be plotted.")
+    p.add_argument("-supt", "--suptitle", type = str,
+                   help = "Titles for specific axes. Format ax1title,ax2title...")
 
     args = p.parse_args()
     return plot(**vars(args))
@@ -93,6 +100,9 @@ def plot(**kwargs):
 
     if kwargs["title"] is not None:
         kwargs["title"] = configure_title(kwargs["title"])
+    
+    if kwargs["suptitle"] is not None:
+        kwargs["suptitle"] = configure_suptitles(kwargs["suptitle"])
     
     if kwargs["locations"] is not None:
         kwargs["locations"] = configure_locations(kwargs["locations"])

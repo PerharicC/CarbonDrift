@@ -68,9 +68,9 @@ def get_status_info(data):
 class Plot:
 
     def __init__(self, *files, cmap = None, color = None, linestyle = None,
-                 lons = None, lats = None, figsize = (20, 20),
-                 fontsize = 17, title = None, depth = -200, add = False,
-                 diff = True, absolute = False, fontweight = "normal", diffidx = None,
+                 lons = None, lats = None, figsize = (20, 20), diffidx = None,
+                 fontsize = 17, title = None, depth = -200, add = False, suptitle = None,
+                 diff = True, absolute = False, fontweight = "normal", martincurve = None,
                  outfile = None, shrink = 1, clip = None, locations = None, bins = None,
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
@@ -89,6 +89,9 @@ class Plot:
             add = False
         elif len(files) > 1 and not (diff or add):
             logger.warning("Multiple files are given but difference and add are set to False.")
+        if diff and add and diffidx is None:
+            logger.warning("Both diff and add are set to True, but diffidx is None. Setting diffidx to half the number of files.")
+            diffidx = len(files) // 2
         if diff and add and diffidx is None:
             logger.warning("Both diff and add are set to True, but diffidx is None. Setting diffidx to half the number of files.")
             diffidx = len(files) // 2
@@ -133,6 +136,7 @@ class Plot:
         self.shrink = shrink
         
         self.title = title
+        self.suptitle = suptitle
         self.diff = diff
         self.add = add
         self.diffidx = diffidx
@@ -169,6 +173,10 @@ class Plot:
 
         self.prop1 = prop1
         self.prop2 = prop2
+        if martincurve is not None:
+            self.plot_martin_curve = True
+            self.martin_curve_coef = float(martincurve)
+        else:self.plot_martin_curve = False
         self.cb_units = colorbarlabel
         self.xlabel = xlabel
         self.ylabel = ylabel
@@ -326,7 +334,7 @@ class Plot:
         logger.debug("Start calculating mass at given depth.")
         mass1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad)
 
-        if self.clip and not self.diff:
+        if self.clip and not self.diff and not self.add:
             mass1 = self.clip_array(np.copy(mass1))
         
         logger.debug("Finished calculating mass at given depth.")
@@ -546,7 +554,7 @@ class Plot:
             drifter_trajectory = z[:, i]
             drifter_mass = mass[:, i]
 
-            if np.isnan(lat[0, i]) or globe.is_land(lat[0, i], lon[0, i]):
+            if np.isnan(lat[0, i]):# or globe.is_land(lat[0, i], lon[0, i]):
                 bad_trajectories.append(i)
                 continue
 
@@ -724,7 +732,8 @@ class Plot:
 
         # xticks = []
         # yticks = []
-        k = 1
+        k = 0
+        markers = "s^vox"
 
         for i, j in self.loc:
             lon_idx = np.where(lon[0, :] == i)
@@ -739,8 +748,15 @@ class Plot:
             if idx in bad:
                 logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
                 continue
-            
-            ax.plot(lon[0, idx], lat[0, idx], "o", markersize = 10, label = self.labels[k-1] if self.legend else None)
+            if self.color is not None:
+                if len(self.color) >1:
+                    color = self.color[k]
+                else:
+                    color = self.color[0]
+            else:
+                color = None
+
+            ax.plot(lon[0, idx], lat[0, idx], markers[k], color = color, markersize = 10, label = self.labels[k] if self.legend else None, zorder = 100)
             # if self.loclines:
             #     ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
             #     ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
@@ -749,7 +765,7 @@ class Plot:
             k += 1
         
         ax.set_global()
-        ax.add_feature(cartopy.feature.LAND, facecolor="gray",edgecolor='black', zorder = 1)
+        ax.add_feature(cartopy.feature.LAND, facecolor="beige",edgecolor='black', zorder = 1)
         ax.coastlines(zorder = 2)
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--')
@@ -759,7 +775,8 @@ class Plot:
         # ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
         if self.legend:
             ax.legend()
-
+        if self.xlim is not None: ax.set_xlim(*self.xlim)
+        if self.ylim is not None: ax.set_ylim(*self.ylim)
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -767,6 +784,11 @@ class Plot:
             plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
         else:
             plt.show()
+
+    def martin_curve(self, z, flux_100 = None):
+        if flux_100 is None:
+            return (np.abs(z) / 100) ** (-self.martin_curve_coef)
+        else: return flux_100 * (np.abs(z) / 100) ** (-self.martin_curve_coef)
 
     def drifter_properties(self):
         '''Plot drifter prop1 vs prop2 at a specified location.'''
@@ -776,11 +798,10 @@ class Plot:
         
         plt.close()
 
-        self.fig, self.ax = plt.subplots(1, 1, figsize = self.figsize)
-
         if self.loc is None:
             raise AttributeError("Locations are not specified.")
         
+        self.fig, self.ax = plt.subplots(1, len(self.loc), figsize = self.figsize)
 
         logger.debug("Searching for bad trajectories.")
         bad = []
@@ -797,6 +818,7 @@ class Plot:
                 
         lines = []
 
+        m = 0
         for i, j in self.loc:
             for k, obj in enumerate(self.objects):
                 lon = obj.get_property("lon")
@@ -853,26 +875,42 @@ class Plot:
                 else:
                     color = None
                 linestyle = self.linestyle[k % len(self.linestyle)]
-                line, = self.ax.plot(X, Y, lw = self.lw, linestyle = linestyle, color = color)
+                line, = self.ax[m].plot(X, Y, lw = self.lw, linestyle = linestyle, color = color)
                 lines.append(line)
-                
         
-        if self.xlabel is None:
-            self.ax.set_xlabel(self.prop1 + " " + unitsx)
-        else:
-            self.ax.set_xlabel(f"{self.xlabel}")
-        if self.ylabel is None:
-            self.ax.set_ylabel(self.prop2 + " " + unitsy)
-        else:
-            self.ax.set_ylabel(f"{self.ylabel}")
+            if self.plot_martin_curve:
+                if self.abs:
+                    #ADD FLUXES
+                    pass
+                else:
+                    line, = self.ax[m].plot(self.martin_curve(Y), Y, lw = self.lw, linestyle = "dotted")
+                if m ==0:
+                    lines.append(line)
+                    self.labels.append("Martin Curve")
+            
+            if self.xlabel is None:
+                self.ax[m].set_xlabel(self.prop1 + " " + unitsx)
+            else:
+                self.ax[m].set_xlabel(f"{self.xlabel}")
+            if self.ylabel is None:
+                self.ax[m].set_ylabel(self.prop2 + " " + unitsy)
+            else:
+                self.ax[m].set_ylabel(f"{self.ylabel}")
 
+            if self.suptitle is not None:
+                self.ax[m].set_title(self.suptitle[m])
+            
+            if self.xlim is not None: self.ax[m].set_xlim(*self.xlim)
+            if self.ylim is not None: self.ax[m].set_ylim(*self.ylim)
+
+            # self.ax[m].tick_params(labelbottom=False,labeltop=True)
+            self.ax[m].xaxis.set_ticks_position('top')
+            self.ax[m].xaxis.set_label_position('top')
+            self.ax[m].grid()
+            m+=1
         if self.title is not None:
-            self.ax.set_title(self.title)
-        
-        if self.legend: self.ax.legend(lines, [f"{label}" for label in self.labels])
-        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
-        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
-        plt.grid()
+            self.fig.suptitle(self.title)
+        if self.legend: self.ax[0].legend(lines, [f"{label}" for label in self.labels])
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -1129,12 +1167,13 @@ class Plot:
         bad = []
         for i in range(len(self.objects)):
             bad.append(self.clean_dataset(self.objects[i]))
-        bad = np.ravel(bad)
+            break
+        # bad = [i for j in bad for i in j]
 
         logger.debug("Start calculating mass at given depth.")
         flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad) / area
 
-        if self.clip and not self.diff:
+        if self.clip and not self.diff and not self.add:
             flux1 = self.clip_array(np.copy(flux1))
         
         logger.debug("Finished calculating mass at given depth.")
@@ -1144,7 +1183,7 @@ class Plot:
                 logger.debug("Start calculating mass at given depth for file2.")
                 flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad) / area
                 logger.debug("Finished calculating mass at given depth for file2.")
-
+                
                 if self.abs:
                     flux = np.copy(flux1) - flux2
                 else:
