@@ -92,9 +92,6 @@ class Plot:
         if diff and add and diffidx is None:
             logger.warning("Both diff and add are set to True, but diffidx is None. Setting diffidx to half the number of files.")
             diffidx = len(files) // 2
-        if diff and add and diffidx is None:
-            logger.warning("Both diff and add are set to True, but diffidx is None. Setting diffidx to half the number of files.")
-            diffidx = len(files) // 2
         
         logger.debug("Importing data.")
 
