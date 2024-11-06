@@ -132,6 +132,9 @@ class CarbonDrift(OceanDrift):
             self.advect_ocean_current()
         
         self.elements.mass = self.microbial_decay()
+        decayed = self.elements.mass <= 0
+        if np.any(decayed):
+            self.deactivate_elements(decayed, reason = "Fully_Decayed")
         # self.elements.jelly_radius = self.update_radius()
         
         dz = self.time_step.total_seconds() * self.vertical_velocity()
@@ -171,8 +174,8 @@ class CarbonDrift(OceanDrift):
     def activate_horizontal_advection(self):
         self.horizontal_advection = True
 
-    def microbial_decay(self): #This is now unitless mass!!!
-        constants = self.time_step.total_seconds()# * self.m0[self.elements.ID - 1] ** (1/3)
+    def microbial_decay(self): #This is now not unitless mass!!!
+        constants = self.time_step.total_seconds() * self.m0[self.elements.ID - 1] ** (1/3)
         return self.elements.mass ** (2/3) * (self.elements.mass ** (1 / 3) - constants * self.decay_coef())
     
     #TODO: Probably delete this soon:
