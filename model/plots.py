@@ -22,7 +22,8 @@ from netCDF4 import Dataset, num2date
 
 from numba import jit
 from datetime import datetime, timedelta
-import cftime
+import os
+import json
 
 class Open:
     """The alternative for opening .nc files, as I have found that opendrift sometimes has problems with understanding masked datasets."""
@@ -96,10 +97,17 @@ class Plot:
         logger.debug("Importing data.")
 
         self.objects =  []
+        self.decay_type = []
         for k in range(len(files)):
             obj = Open(files[k])
             setattr(self, "obj" + str(k + 1), obj)
             self.objects.append(getattr(self, "obj" + str(k + 1)))
+            param_file = files[k].replace(".nc", ".json")
+            if os.path.exists(param_file):
+                with open(param_file, "r") as f:
+                    param = json.load(f)
+                    self.decay_type.append(param["decaytype"])
+                f.close()
         
         logger.debug("Adding attributes.")
 
@@ -917,6 +925,96 @@ class Plot:
             plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
         else:
             plt.show()
+
+    def z_tau(self):
+        plt.close()
+
+        if self.loc is None:
+            raise AttributeError("Locations are not specified.")
+        if len(self.decay_type) == 0:
+            raise FileExistsError("No .json parameter file found to read decaytype.")
+        self.fig, self.ax = plt.subplots(1, len(self.loc), figsize = self.figsize)
+
+        logger.debug("Searching for bad trajectories.")
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        logger.debug("Reading required simulation properties.")
+                
+        lines = []
+
+        m = 0
+        for i, j in self.loc:
+            for k, obj in enumerate(self.objects):
+                lon = obj.get_property("lon")
+                lon = np.ma.filled(lon, np.nan)
+
+                lat = obj.get_property("lat")
+                lat = np.ma.filled(lat, np.nan)
+                lon_idx = np.where(lon[0, :] == i)
+                lat_idx = np.where(lat[0, :] == j)
+                idx = np.intersect1d(lon_idx, lat_idx)
+
+                if len(idx) == 0:
+                    logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
+                    continue
+                else:
+                    idx = idx[0]
+            
+                if idx in bad[k]:
+                    logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
+                    continue
+                
+                T = obj.get_property("sea_water_temperature")
+                T = np.ma.filled(T, np.nan)
+                T = T[:, idx]
+                T[T< 0]=0
+                decay = self.decay_type[k]
+                if decay == "linear":
+                    decayrate = 0.064 * T + 0.02
+                else:
+                    decayrate = 0.140 * np.exp(0.145 * T)
+                tau = 1 / decayrate
+                tau *= 24
+                y = obj.get_property("z")
+                y = np.ma.filled(y, np.nan)
+                y = y[:, idx]
+                
+                if self.color is not None:
+                    color = self.color[k % len(self.color)]
+                else:
+                    color = None
+                linestyle = self.linestyle[k % len(self.linestyle)]
+                line, = self.ax[m].plot(tau, y, lw = self.lw, linestyle = linestyle, color = color)
+                lines.append(line)
+            
+            if self.xlabel is not None:
+                self.ax[m].set_xlabel(f"{self.xlabel}")
+            if self.ylabel is not None:
+                self.ax[m].set_ylabel(f"{self.ylabel}")
+            if self.suptitle is not None:
+                self.ax[m].set_title(self.suptitle[m])
+            
+            if self.xlim is not None: self.ax[m].set_xlim(*self.xlim)
+            if self.ylim is not None: self.ax[m].set_ylim(*self.ylim)
+
+            # self.ax[m].tick_params(labelbottom=False,labeltop=True)
+            self.ax[m].xaxis.set_ticks_position('top')
+            self.ax[m].xaxis.set_label_position('top')
+            self.ax[m].grid()
+            m+=1
+        if self.title is not None:
+            self.fig.suptitle(self.title)
+        if self.legend: self.ax[0].legend(lines, [f"{label}" for label in self.labels])
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+
+
 
     def get_mass_sum_at_depth(self):
 
