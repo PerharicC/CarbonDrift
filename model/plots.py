@@ -142,7 +142,9 @@ class Plot:
         self.fontweight = fontweight
 
         logger.debug("Creating time array.")
-        self.time = self.obj1.get_time_array()
+        self.time = []
+        for i in range(len(self.objects)):
+            self.time.append(self.objects[i].get_time_array())
 
         logger.debug("Decrypting status numberings.")
 
@@ -516,8 +518,8 @@ class Plot:
         logger.debug("Finish summing masses.")
         return mass_at_depth
     
-    def create_timedelta_array(self, n):
-        dt = datetime.strptime(str(self.time[1]),'%Y-%m-%d %H:%M:%S') - datetime.strptime(str(self.time[0]),'%Y-%m-%d %H:%M:%S')
+    def create_timedelta_array(self, n, objidx):
+        dt = datetime.strptime(str(self.time[objidx][1]),'%Y-%m-%d %H:%M:%S') - datetime.strptime(str(self.time[objidx][0]),'%Y-%m-%d %H:%M:%S')
         dt = dt.total_seconds() / 3600
         return np.arange(0, n * dt, dt)
 
@@ -842,7 +844,7 @@ class Plot:
                     x = np.ma.filled(x, np.nan)
                     unitsx = "[" + obj.data[self.prop1].units + "]"
                 else:
-                    x = self.create_timedelta_array(lon.shape[0])
+                    x = self.create_timedelta_array(lon.shape[0], k)
                     unitsx = "[h]"
                 
                 if self.prop2 != "time":
@@ -850,7 +852,7 @@ class Plot:
                     y = np.ma.filled(y, np.nan)
                     unitsy = "[" + self.obj1.data[self.prop2].units + "]"
                 else:
-                    y = self.create_timedelta_array(lon.shape[0])
+                    y = self.create_timedelta_array(lon.shape[0], k)
                     unitsy = "[h]"
 
                 if self.prop1 == "time":
