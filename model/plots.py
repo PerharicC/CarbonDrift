@@ -1476,12 +1476,17 @@ class Plot:
         flux = np.copy(flux1)
         flux[np.isnan(flux)] = 0
         flux_mask = flux == 0
-        # flux = np.ma.array(data = flux, mask = flux_mask)
+        flux = np.ma.array(data = flux, mask = flux_mask)
         mean_lon_flux = np.ma.mean(flux, axis = 0)
         # print(mean_lon_flux.shape)
-        plt.plot(mean_lon_flux, self.lats, color = "black", linewidth = self.lw)
-        plt.xlabel(self.xlabel, fontsize = 17)
-        plt.ylabel(self.ylabel, fontsize = 17)
+        plt.plot(self.lats, mean_lon_flux, color = "black", linewidth = self.lw)
+        if self.xlabel is not None: plt.xlabel(f"{self.xlabel}")
+        if self.ylabel is not None: plt.ylabel(f"{self.ylabel}")
+        if self.xlim is not None: plt.xlim(*self.xlim)
+        if self.ylim is not None: plt.ylim(*self.ylim)
+        plt.grid()
+        if self.title is not None:
+            plt.title(self.title)
         
         plt.tight_layout()
 
