@@ -753,7 +753,7 @@ class Plot:
             else:
                 color = None
 
-            ax.plot(lon[0, idx], lat[0, idx], markers[k], color = color, markersize = 10, label = self.labels[k] if self.legend else None, zorder = 100)
+            ax.plot(lon[0, idx], lat[0, idx], markers[k%len(markers)], color = color, markersize = 10, label = self.labels[k] if self.legend else None, zorder = 100)
             # if self.loclines:
             #     ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
             #     ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
@@ -881,7 +881,7 @@ class Plot:
                     pass
                 else:
                     line, = self.ax[m].plot(self.martin_curve(Y), Y, lw = self.lw, linestyle = "dotted")
-                if m ==0:
+                if m ==0 and self.legend:
                     lines.append(line)
                     self.labels.append("Martin Curve")
             
@@ -1028,6 +1028,7 @@ class Plot:
 
             drifter_trajectory = z[:, i]
             drifter_mass = mass[:, i]
+            if drifter_mass[0] <=0:continue
             b = int(biome[0, i])
 
             trajectory_nans = np.invert(np.isnan(drifter_trajectory))
@@ -1085,7 +1086,10 @@ class Plot:
                     ax.append(plt.Subplot(fig, innergrid[j]))
         logger.debug("Figure set.")
         bottom = np.zeros((len(ax), len(self.objects) // 8+1))
-        colors = ["blue", "orange", "green"]
+        if self.color is None:
+            colors = ["blue", "orange", "green"]
+        else:
+            colors = self.color
         if self.xlabel is not None:
             xticks = self.xlabel.split(",")
         else:
@@ -1097,17 +1101,21 @@ class Plot:
             for k in range(4):
                 y = np.zeros(len(xticks))
                 y[j] = flux[k]
-                ax[i%2 + 2*k].bar(xticks, y, bottom = bottom[i%2 + 2*k], color = colors[(i%6) // 2])
+                ax[i%2 + 2*k].bar(xticks, y, bottom = bottom[i%2 + 2*k], color = colors[(i%6) // 2], alpha = 0.7)
                 bottom[i%2 + 2*k]+=y
             if i % 6 == 5:
                 j+=1
+        if self.suptitle is None:
+            suptitle = ["Carcasses", "Fecal Matter"]
+        else:
+            suptitle = self.suptitle
         for i in range(len(ax)):
             if i > 0:
                 ax[i].yaxis.set_tick_params(labelleft=False)
             if i % 2 == 0:
-                ax[i].set_title("Carcasses", fontsize=15)
+                ax[i].set_title(suptitle[0], fontsize=15)
             else:
-                ax[i].set_title("Fecal Matter", fontsize=15)
+                ax[i].set_title(suptitle[1], fontsize=15)
             ax[i].tick_params(axis='x', labelrotation=90, labelsize = 15)
             
             fig.add_subplot(ax[i])
@@ -1116,9 +1124,9 @@ class Plot:
             ax[0].set_ylabel(f"{self.ylabel}")
         
         if self.legend:
-            lines = [mpl.patches.Patch(facecolor='blue'),
-                     mpl.patches.Patch(facecolor='orange'),
-                     mpl.patches.Patch(facecolor='green')]
+            lines = [mpl.patches.Patch(facecolor=colors[0]),
+                     mpl.patches.Patch(facecolor=colors[1]),
+                     mpl.patches.Patch(facecolor=colors[2])]
             fig.legend(lines, [f"{label}" for label in self.labels], loc = "center right")
         if self.xlim is not None: ax[0].set_xlim(*self.xlim)
         if self.ylim is not None: ax[0].set_ylim(*self.ylim)
@@ -1233,9 +1241,9 @@ class Plot:
         if self.title is not None:
             ax.set_title(self.title, fontweight = self.fontweight)
 
-        ax.add_feature(cartopy.feature.LAND, zorder=100, edgecolor='k', facecolor = "beige")
+        ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
-                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+                  linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
         # gl.xlocator = mticker.FixedLocator([-120, -60, 0, 60, 120])
         # gl.ylocator = mticker.FixedLocator([-60, -30, 0, 30, 60])
         # gl.xformatter = LONGITUDE_FORMATTER
