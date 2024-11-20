@@ -76,7 +76,8 @@ class Plot:
                  loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
-                 biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None):
+                 biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None,
+                 mhwintesitypath = None):
         
         logger.debug("Setting up figure.")
         plt.rcParams.update({'font.size': fontsize})
@@ -175,6 +176,7 @@ class Plot:
         
         self.areagridpath = areagridpath
         self.biomegridpath = biomegridpath
+        self.mhwIpath = mhwintesitypath
         self.group = group
         self.loc = locations
 
@@ -809,7 +811,10 @@ class Plot:
             raise AttributeError("Locations are not specified.")
         
         self.fig, self.ax = plt.subplots(1, len(self.loc), figsize = self.figsize)
-
+        try:
+            self.ax[0]
+        except TypeError:
+            self.ax = [self.ax]
         logger.debug("Searching for bad trajectories.")
         bad = []
         for i in range(len(self.objects)):
@@ -850,18 +855,14 @@ class Plot:
                 if self.prop1 != "time":
                     x = obj.get_property(self.prop1)
                     x = np.ma.filled(x, np.nan)
-                    unitsx = "[" + obj.data[self.prop1].units + "]"
                 else:
                     x = self.create_timedelta_array(lon.shape[0], k)
-                    unitsx = "[h]"
                 
                 if self.prop2 != "time":
                     y = obj.get_property(self.prop2)
                     y = np.ma.filled(y, np.nan)
-                    unitsy = "[" + self.obj1.data[self.prop2].units + "]"
                 else:
                     y = self.create_timedelta_array(lon.shape[0], k)
-                    unitsy = "[h]"
 
                 if self.prop1 == "time":
                     X = x
@@ -896,11 +897,11 @@ class Plot:
                     self.labels.append("Martin Curve")
             
             if self.xlabel is None:
-                self.ax[m].set_xlabel(self.prop1 + " " + unitsx)
+                self.ax[m].set_xlabel(self.prop1)
             else:
                 self.ax[m].set_xlabel(f"{self.xlabel}")
             if self.ylabel is None:
-                self.ax[m].set_ylabel(self.prop2 + " " + unitsy)
+                self.ax[m].set_ylabel(self.prop2)
             else:
                 self.ax[m].set_ylabel(f"{self.ylabel}")
 
@@ -1559,4 +1560,23 @@ class Plot:
         else:
             plt.show()
             
+    def mhw_correlations(self):
+        logger.debug("Searching for bad trajectories.")
+        bad = []
+        for i in range(len(self.objects)):
+            bad.append(self.clean_dataset(self.objects[i]))
+        logger.debug("Reading required simulation properties.")
+        h = self.depth
+        area = np.load(self.areagridpath).T
+        I = np.load(self.mhwIpath).T
+        flux1 = np.zeros((360, 180))
+        flux2 = np.zeros((360, 180))
+        for i in range(self.diffidx):
+            flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+        for i in range(self.diffidx, len(self.objects)):
+            flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+        flux = (np.copy(flux1) - flux2) / np.copy(flux1)
+        self.ax.scatter(I.ravel(), flux.ravel(), color = "k")
+        plt.show()
 
+        

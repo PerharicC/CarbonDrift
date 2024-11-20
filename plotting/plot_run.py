@@ -77,6 +77,7 @@ def main():
                    help="Martin curve coefficient. If None, it will not be plotted.")
     p.add_argument("-supt", "--suptitle", type = str,
                    help = "Titles for specific axes. Format ax1title,ax2title...")
+    p.add_argument("-mhwpath", "--mhwintesitypath", type = str)
 
     args = p.parse_args()
     return plot(**vars(args))
