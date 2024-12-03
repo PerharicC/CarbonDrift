@@ -156,8 +156,11 @@ class Plot:
             self.time.append(self.objects[i].get_time_array())
 
         logger.debug("Decrypting status numberings.")
-
-        seafloor, stranded = get_status_info(self.obj1.data)
+        seafloor, stranded = [], []
+        for i in range(len(self.objects)):
+            stinfo = get_status_info(self.objects[i].data)
+            seafloor.append(stinfo[0])
+            stranded.append(stinfo[1])
         # self.ice_idx = ice
         self.seafloor_idx = seafloor
         self.stranded_idx = stranded
@@ -341,7 +344,7 @@ class Plot:
         bad = np.ravel(bad)
 
         logger.debug("Start calculating mass at given depth.")
-        mass1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad)
+        mass1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad,self.seafloor_idx[0])
 
         if self.clip and not self.diff and not self.add:
             mass1 = self.clip_array(np.copy(mass1))
@@ -351,7 +354,7 @@ class Plot:
         if self.diff:
             if not self.add:
                 logger.debug("Start calculating mass at given depth for file2.")
-                mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad)
+                mass2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad,self.seafloor_idx[1])
                 logger.debug("Finished calculating mass at given depth for file2.")
 
                 if self.abs:
@@ -364,9 +367,9 @@ class Plot:
             else:
                 mass2 = np.zeros(mass1.shape)
                 for i in range(1, self.diffidx):
-                    mass1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad)
+                    mass1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad,self.seafloor_idx[i])
                 for i in range(self.diffidx, len(self.objects)):
-                    mass2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad)
+                    mass2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad,self.seafloor_idx[i])
                 if self.abs:
                     mass = np.copy(mass1) - mass2
                 else:
@@ -376,8 +379,8 @@ class Plot:
                 m, mid, M = self.get_colormap_midpoint(mass)
         elif self.add:
             logger.debug("Start calculating mass at given depth for other files.")
-            for obj in self.objects[1:]:
-                mass1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad)
+            for i, obj in enumerate(self.objects[1:]):
+                mass1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad,self.seafloor_idx[i])
             logger.debug("Finished calculating mass at given depth for other files.")
             mass = np.copy(mass1)
             if self.clip:
@@ -451,7 +454,7 @@ class Plot:
         n = y2 - k * x2
         return k * x0 + n, idx2
     
-    def zone_crossing_event(self, obj:Open, lons, lats, depth, bad):
+    def zone_crossing_event(self, obj:Open, lons, lats, depth, bad, seafloor_idx):
         
         """Calculate particle properties when crossing a certain depth."""
 
@@ -471,7 +474,7 @@ class Plot:
         status = np.ma.MaskedArray(status.data, status.mask, float)
         status = np.ma.filled(status, np.nan)
 
-        return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, self.seafloor_idx, bad)
+        return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, seafloor_idx, bad)
 
     # @jit(nopython = True)
     def mass_sum(self, lons, lats, depth, z, mass, lon, lat, status, sfidx, bad):
@@ -684,7 +687,7 @@ class Plot:
                     idx = np.where(drifter_status == self.stranded_idx)[0][0]
                     stranded = True
                 else:
-                    idx = np.where(drifter_status == self.seafloor_idx)[0]
+                    idx = np.where(drifter_status == self.seafloor_idx[0])[0]
                     if len(idx) == 0:
                         logger.warning("Drifter at initial position ({}, {}) has not been deactivated/passed the specified depth.".format(drifter_lat[0], drifter_lon[0]))
                         logger.warning("Taking the last position.")
@@ -1078,7 +1081,7 @@ class Plot:
                 #     raise ValueError("Depth decreases.")
                 
                 s = status[:, i]
-                sea_floor = np.where(s == self.seafloor_idx)[0]
+                sea_floor = np.where(s == self.seafloor_idx[0])[0]
                 if len(sea_floor) >0:
                     depth_idx = sea_floor[0]
                 else:
@@ -1147,7 +1150,7 @@ class Plot:
                 #     raise ValueError("Depth decreases.")
                 
                 s = status[:, i]
-                sea_floor = np.where(s == self.seafloor_idx)[0]
+                sea_floor = np.where(s == self.seafloor_idx[0])[0]
                 if len(sea_floor) >0:
                     depth_idx = sea_floor[0]
                 else:
@@ -1277,7 +1280,7 @@ class Plot:
         # bad = [i for j in bad for i in j]
 
         logger.debug("Start calculating mass at given depth.")
-        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad) / area
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad, self.seafloor_idx[0]) / area
 
         if self.clip and not self.diff and not self.add:
             flux1 = self.clip_array(np.copy(flux1))
@@ -1287,7 +1290,7 @@ class Plot:
         if self.diff:
             if not self.add:
                 logger.debug("Start calculating mass at given depth for file2.")
-                flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad) / area
+                flux2 = self.zone_crossing_event(self.obj2, self.lons, self.lats, h, bad,self.seafloor_idx[1]) / area
                 logger.debug("Finished calculating mass at given depth for file2.")
                 
                 if self.abs:
@@ -1300,9 +1303,9 @@ class Plot:
             else:
                 flux2 = np.zeros(flux1.shape)
                 for i in range(1, self.diffidx):
-                    flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+                    flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad, self.seafloor_idx[i]) / area
                 for i in range(self.diffidx, len(self.objects)):
-                    flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+                    flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad, self.seafloor_idx[i]) / area
                 if self.abs:
                     flux = np.copy(flux1) - flux2
                 else:
@@ -1312,8 +1315,8 @@ class Plot:
                 m, mid, M = self.get_colormap_midpoint(flux)
         elif self.add:
             logger.debug("Start calculating mass at given depth for other files.")
-            for obj in self.objects[1:]:
-                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad) / area
+            for i, obj in enumerate(self.objects[1:]):
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, h, bad, self.seafloor_idx[i]) / area
             logger.debug("Finished calculating mass at given depth for other files.")
             flux = np.copy(flux1)
             if self.clip:
@@ -1468,11 +1471,11 @@ class Plot:
         bad = np.ravel(bad)
 
         logger.debug("Start calculating mass at given depth.")
-        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad) / area
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad,self.seafloor_idx[0]) / area
         if self.add:
             logger.debug("Start calculating mass at given depth for other files.")
-            for obj in self.objects[1:]:
-                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad) / area
+            for i, obj in enumerate(self.objects[1:]):
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad ,self.seafloor_idx[i]) / area
             logger.debug("Finished calculating mass at given depth for other files.")
         flux = np.copy(flux1)
         flux[np.isnan(flux)] = 0
@@ -1506,11 +1509,11 @@ class Plot:
         bad = np.ravel(bad)
 
         logger.debug("Start calculating mass at given depth.")
-        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad) / area
+        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad,self.seafloor_idx[0]) / area
         if self.add:
             logger.debug("Start calculating mass at given depth for other files.")
-            for obj in self.objects[1:]:
-                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad) / area
+            for i, obj in enumerate(self.objects[1:]):
+                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad,self.seafloor_idx[i]) / area
             logger.debug("Finished calculating mass at given depth for other files.")
         flux = np.copy(flux1)
         flux[np.isnan(flux)] = 0
@@ -1572,9 +1575,9 @@ class Plot:
         flux1 = np.zeros((360, 180))
         flux2 = np.zeros((360, 180))
         for i in range(self.diffidx):
-            flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+            flux1 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad,self.seafloor_idx[i]) / area
         for i in range(self.diffidx, len(self.objects)):
-            flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad) / area
+            flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad,self.seafloor_idx[i]) / area
         flux = (np.copy(flux1) - flux2) / np.copy(flux1)
         self.ax.scatter(I.ravel(), flux.ravel(), color = "k")
         plt.show()
