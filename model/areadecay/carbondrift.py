@@ -134,6 +134,7 @@ class CarbonDrift(OceanDrift):
         self.elements.mass = self.microbial_decay()
         decayed = self.elements.mass <= 0
         if np.any(decayed):
+            self.elements.mass[decayed] = 0
             self.deactivate_elements(decayed, reason = "Fully_Decayed")
         # self.elements.jelly_radius = self.update_radius()
         
