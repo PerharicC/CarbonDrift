@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button, CheckButtons
 from matplotlib import animation
 from matplotlib import gridspec
-
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms
 import matplotlib.ticker as mticker
 from matplotlib.lines import Line2D
 import cartopy
@@ -1580,6 +1581,121 @@ class Plot:
             flux2 += self.zone_crossing_event(self.objects[i], self.lons, self.lats, h, bad,self.seafloor_idx[i]) / area
         flux = (np.copy(flux1) - flux2) / np.copy(flux1)
         self.ax.scatter(I.ravel(), flux.ravel(), color = "k")
-        plt.show()
+        mask = np.invert((flux1 == 0) | (flux2==0) | np.isnan(flux1) | np.isnan(flux2) | np.isnan(I))
+        if self.color is not None:
+            color = self.color[0]
+        else:
+            color = "k"
+        self.ax.scatter(I.ravel()[mask.ravel()], flux.ravel()[mask.ravel()], color = color)
+        cov = np.cov(I.ravel()[mask.ravel()], flux.ravel()[mask.ravel()])
+        pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+        ell_radius_x = np.sqrt(1 + pearson)
+        ell_radius_y = np.sqrt(1 - pearson)
+        ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2, edgecolor = "red", facecolor = 'none', linewidth = 3)
+        scale_x = np.sqrt(cov[0, 0]) * 5
+        mean_x = np.mean(I.ravel()[mask.ravel()])
+
+        # calculating the standard deviation of y ...
+        scale_y = np.sqrt(cov[1, 1]) * 5
+        mean_y = np.mean(flux.ravel()[mask.ravel()])
+
+        transf = transforms.Affine2D()
+        transf.rotate_deg(45)
+        transf.scale(scale_x, scale_y)
+        transf.translate(mean_x, mean_y)
+
+        ellipse.set_transform(transf + self.ax.transData)
+        self.ax.add_patch(ellipse)
+        if self.xlabel is not None:
+            self.ax.set_xlabel(f"{self.xlabel}")
+        if self.ylabel is not None:
+            self.ax.set_ylabel(f"{self.ylabel}")
+        if self.title is not None:
+            self.ax.set_title(self.title)
+            
+        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
+        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
+        self.ax.grid()
+        plt.tight_layout()
+
+        if self.outfile is not None:
+            logger.debug("Saving output file.")
+            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+        else:
+            plt.show()
+
+    def get_mass_over_mhw_area(self, obj = None):
+        '''Return sum of mass over all grid points in the 4 biomes at given depth.'''
+        logger.debug("Reading required simulation properties.")
+        if obj is None:
+            obj = self.obj1
+        loc = self.loc
+        if loc is None:
+            raise AttributeError("Missing mhw Area. Locations must be added.")
+        lonmin = min([i[0] for i in loc])
+        lonmax = max([i[0] for i in loc])
+        latmin = min([i[1] for i in loc])
+        latmax = max([i[1] for i in loc])
+        z = obj.get_property('z')
+        z = np.ma.filled(z, np.nan)
+
+        mass = obj.get_property("mass")
+        mass = np.ma.filled(mass, np.nan)
+
+        lon = obj.get_property("lon")
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = obj.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        biome = obj.get_property("origin_marker")
+        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
+        biome = np.ma.filled(biome, np.nan)
+
+        status = obj.get_property("status")
+        status = np.ma.MaskedArray(status.data, status.mask, float)
+        status = np.ma.filled(status, np.nan)
+
+        logger.debug("Start summing masses.")
+
+        depth = self.depth
+        mass_by_biomes = 0
+        for i in range(mass.shape[1]):
+
+            drifter_trajectory = z[:, i]
+            drifter_mass = mass[:, i]
+            if lon[0, i]<lonmin or lon[0, i]>lonmax or lat[0, i]<latmin or lat[0, i]>latmax:
+                continue
+
+            trajectory_nans = np.invert(np.isnan(drifter_trajectory))
+            
+            if type(depth) != str:
+                if np.min(drifter_trajectory[trajectory_nans])>depth:
+                    continue
+
+                m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
+            
+            else:
+                #Sea_floor.
+                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
+                # if len(bounce) > 0:
+                #     raise ValueError("Depth decreases.")
+                
+                s = status[:, i]
+                sea_floor = np.where(s == self.seafloor_idx)[0]
+                if len(sea_floor) >0:
+                    depth_idx = sea_floor[0]
+                else:
+                    depth_idx = len(drifter_trajectory)-1
+                m = drifter_mass[depth_idx]
+
+
+            if np.isnan(m):
+                continue
+            
+            mass_by_biomes += m
+        
+        logger.debug("Finish summing masses.")
+        return mass_by_biomes * 10 ** (-15)
 
         
