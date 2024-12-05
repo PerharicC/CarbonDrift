@@ -54,6 +54,7 @@ def get_status_info(data):
     # ice = "Ice"
     seafloor = "Reached_Sea_Floor"
     stranded = "stranded"
+    decayed = "Fully_Decayed"
     # ice_idx = meanings.index(ice)
     if seafloor in meanings:
         seafloor_idx = meanings.index(seafloor)
@@ -65,7 +66,12 @@ def get_status_info(data):
         st = values[stranded_idx]
     else:
         st = -11
-    return sf, st
+    if decayed in meanings:
+        decayed_idx = meanings.index(decayed)
+        sd = values[decayed_idx]
+    else:
+        sd = -11
+    return sf, st, sd
 
 class Plot:
 
@@ -157,14 +163,16 @@ class Plot:
             self.time.append(self.objects[i].get_time_array())
 
         logger.debug("Decrypting status numberings.")
-        seafloor, stranded = [], []
+        seafloor, stranded, decayed = [], [], []
         for i in range(len(self.objects)):
             stinfo = get_status_info(self.objects[i].data)
             seafloor.append(stinfo[0])
             stranded.append(stinfo[1])
+            decayed.append(stinfo[2])
         # self.ice_idx = ice
         self.seafloor_idx = seafloor
         self.stranded_idx = stranded
+        self.decayed_idx = decayed
 
         logger.debug("Setting up clipping.")
         if clip is None:
@@ -607,22 +615,22 @@ class Plot:
         # rows2, cols2 = np.where(in_cell == 0)
         # D[rows2, cols2] = np.nan
         logger.debug("Start plotting")
-        ax.add_feature(cartopy.feature.LAND, zorder=3, edgecolor='k', facecolor = "beige")
+        ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
 
         if self.clip:
             D = self.clip_array(np.copy(D))
         
         sm = ax.contourf(self.lons, self.lats, D.T, 20, transform=ccrs.PlateCarree(), cmap = cmap, zorder = 1, extend = "max")
         # ax.contour(self.lons, self.lats, in_cell.T, levels = 0, transform = ccrs.PlateCarree(), colors = "red")
-        ax.contour(self.lons, self.lats, is_at_seafloor.T, levels = 1, transform = ccrs.PlateCarree(), colors = "black", label = "seafloor")
+        ax.contour(self.lons, self.lats, is_at_seafloor.T, levels = 1, transform = ccrs.PlateCarree(), colors = "red", label = "seafloor")
         # ax.contour(self.lons, self.lats, is_stranded.T, levels = 1, transform = ccrs.PlateCarree(), colors = "orange", label = "stranded")
         
         # incell_label = Line2D([0], [0], color='red', lw=2)
-        seafloor_label = Line2D([0], [0], color='black', lw=2)
+        seafloor_label = Line2D([0], [0], color='red', lw=2)
         # stranded_label = Line2D([0], [0], color='orange', lw=2)
 
         # ax.legend([incell_label, seafloor_label, stranded_label], ['moved out of cell', "seafloor", "stranded"], loc='upper right')
-        ax.legend([seafloor_label], ["seafloor"], loc="upper right")
+        ax.legend([seafloor_label], ["morsko dno"], loc="upper right")
 
         cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
@@ -631,7 +639,7 @@ class Plot:
             ax.set_title(self.title, fontweight = self.fontweight)
 
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
-                  linewidth=2, color='k', alpha=0.8, linestyle='--')
+                  linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
         # gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
         # gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
         # gl.xformatter = LONGITUDE_FORMATTER
@@ -684,8 +692,11 @@ class Plot:
             drifter_status = status[:, i]
             nans = np.invert(np.isnan(drifter_lat))
             if np.min(drifter_z[nans]) > self.depth:
-                if len(np.where(drifter_status == self.stranded_idx)[0]) > 0:
-                    idx = np.where(drifter_status == self.stranded_idx)[0][0]
+                if len(np.where(drifter_status == self.stranded_idx[0])[0]) > 0:
+                    idx = np.where(drifter_status == self.stranded_idx[0])[0][0]
+                    stranded = True
+                elif len(np.where(drifter_status == self.decayed_idx[0])[0]) > 0:
+                    idx = np.where(drifter_status == self.decayed_idx[0])[0][0]
                     stranded = True
                 else:
                     idx = np.where(drifter_status == self.seafloor_idx[0])[0]
@@ -1466,29 +1477,46 @@ class Plot:
     def mean_lon_mass_flux(self):
         area = np.load(self.areagridpath).T
         logger.debug("Searching for bad trajectories.")
-        bad = []
-        for i in range(len(self.objects)):
-            bad.append(self.clean_dataset(self.objects[i]))
+        bad = self.clean_dataset(self.objects[0])
         bad = np.ravel(bad)
 
         logger.debug("Start calculating mass at given depth.")
-        flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, self.depth, bad,self.seafloor_idx[0]) / area
-        if self.add:
-            logger.debug("Start calculating mass at given depth for other files.")
-            for i, obj in enumerate(self.objects[1:]):
-                flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad ,self.seafloor_idx[i]) / area
-            logger.debug("Finished calculating mass at given depth for other files.")
-        flux = np.copy(flux1)
-        flux[np.isnan(flux)] = 0
-        flux_mask = flux == 0
-        flux = np.ma.array(data = flux, mask = flux_mask)
-        mean_lon_flux = np.ma.mean(flux, axis = 0)
-        # print(mean_lon_flux.shape)
-        plt.plot(self.lats, mean_lon_flux, color = "black", linewidth = self.lw)
+        if self.legend is not None:
+            model_num = len(self.labels)
+        else:
+            model_num = 1
+        sim_num = len(self.objects) // model_num
+        for mnum in range(model_num):
+            flux1 = self.zone_crossing_event(self.objects[mnum*sim_num], self.lons, self.lats, self.depth, bad,self.seafloor_idx[mnum*sim_num]) / area
+            if self.add:
+                logger.debug("Start calculating mass at given depth for other files.")
+                for i, obj in enumerate(self.objects[mnum*sim_num + 1:mnum*sim_num+sim_num]):
+                    flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad, self.seafloor_idx[i]) / area
+                logger.debug("Finished calculating mass at given depth for other files.")
+            flux = np.copy(flux1)
+            flux[np.isnan(flux)] = 0
+            flux_mask = flux == 0
+            flux = np.ma.array(data = flux, mask = flux_mask)
+            mean_lon_flux = np.ma.mean(flux, axis = 0)
+            # print(mean_lon_flux.shape)
+            if self.color is not None:
+                color = self.color[mnum]
+            else:
+                color = "black"
+            if self.linestyle is not None:
+                ls = self.linestyle[mnum]
+            else:
+                ls = "solid"
+            if self.legend is not None:
+                label = self.labels[mnum]
+            else:
+                label = None
+            plt.plot(self.lats, mean_lon_flux, color = color, linewidth = self.lw, label = label, ls = ls)
         if self.xlabel is not None: plt.xlabel(f"{self.xlabel}")
         if self.ylabel is not None: plt.ylabel(f"{self.ylabel}")
         if self.xlim is not None: plt.xlim(*self.xlim)
         if self.ylim is not None: plt.ylim(*self.ylim)
+        if self.legend is not None: plt.legend()
         plt.grid()
         if self.title is not None:
             plt.title(self.title)
@@ -1535,7 +1563,6 @@ class Plot:
                     color = None
                 mask = np.invert(flux_mask) & (biomes == i)
                 self.ax.hist(flux[mask], bins = self.bins, color = color, alpha = 0.8, label = biome_names[i], density=True)
-            self.ax.legend()
         elif self.group in ["lonmean", "latmean"]:
             if self.color is not None:
                 color = self.color[0]
@@ -1543,18 +1570,17 @@ class Plot:
                 color = None
             flux = np.ma.array(data = flux, mask = flux_mask)
             self.ax.hist(np.ma.mean(flux, axis = 0 if self.group == "lonmean" else 1), bins = self.bins, color = color, density=True)
-        
-        if self.xlabel is None:
-            self.ax.set_xlabel("C flux [g C Y^-1 m^-2]")
-        else:
+        self.ax.axvline(np.ma.mean(flux[mask]), color = "black", lw = self.lw, linestyle = "dashed", label = f"povprečje; {round(np.ma.mean(flux[mask]), 2)}")
+        self.ax.legend()
+        if self.xlabel is not None:
             self.ax.set_xlabel(f"{self.xlabel}")
-        if self.ylabel is None:
-            self.ax.set_ylabel("probability density")
-        else:
+        if self.ylabel is not None:
             self.ax.set_ylabel(f"{self.ylabel}")
 
         if self.title is not None:
             self.ax.set_title(self.title)
+        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
+        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
 
         plt.tight_layout()
 
