@@ -48,6 +48,7 @@ class Open:
         return num2date(time[:], units)
 
 def get_status_info(data):
+    """Assign index values to status info."""
     status = data.variables["status"]
     meanings = status.flag_meanings.split()
     values = status.flag_values
@@ -74,6 +75,7 @@ def get_status_info(data):
     return sf, st, sd
 
 class Plot:
+    """CarbonDrift plotting module. Contains many methods for simulation visualization."""
 
     def __init__(self, *files, cmap = None, color = None, linestyle = None,
                  lons = None, lats = None, figsize = (20, 20), diffidx = None,
@@ -85,6 +87,80 @@ class Plot:
                  legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
                  biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None,
                  mhwintesitypath = None, dpi = 300):
+        """
+        Parameters
+        -----------
+        files: str
+            Unlimited number of string simulation paths. At least one is required!
+        cmap: str or None
+            Matplolib cmap name (default None)
+        color: str or None
+            String of colors separated by ','. E.g red,blue,orange (number of colors should match
+            number of files, unless they are added) (default None)
+        linestyle: str or None
+            String of linestyles separated by ','. E.g solid,dashed,dotted (number of linestyles should match
+            number of files, unless they are added) (default None)
+        lons: numpy array or None
+            Specific longitudes to use in plotting methods. If None the np.array(-180,180,1) is asummed.
+        lons: numpy array or None
+            Specific latitudes to use in plotting methods. If None the np.array(-90,90,1) is asummed.
+        figsize: tuple
+            Figure size (default(20, 20))
+        diffidx: int or None
+            Index of files which separates masses that are added with a plus sign and masses that are
+            added with a minus sign. Only use if diff and add are both True. If None len(files) // 2 is asummed.
+        fontsize: float
+            Fontsize (default 17)
+        title: str or None
+            Figure title (default None)
+        depth: float
+            Depth in meters at which a calculation takes place. If positive a depth*(-1) preprocess is performed.
+            If depth <= -5000, calculations at seafloor are asummed (default -200)
+        add: bool
+            Add file outputs (deafult False)
+        suptitle: list or None
+            List of suptitles (default None)
+        diff: bool
+            Take difference between two or more files if specified (default True)
+        absolute: bool
+            Show absolute value of mass/mass flux... (default False)
+        fontweight: str
+            Fontweight (default "normal")
+        martincurve: float or None
+            Martin curve coefficient. If specified the curve is plotted (default None)
+        outfile: str or None
+            Outfile path, if None plt.show() is called (default None)
+        shrink: float
+            Coorbar shrink (default 1)
+        clip: TODO CHANGE
+        locations: list of tuples or None
+            Locations for dynamics analysis. Example [(longitude1, latitude1), (longitude2, latitude2),...]
+            (default None)
+        bins: int or None
+            Number of bins for histogram (default None)
+        prop1: str or None
+            Property to plot on x axes. Must be the short name in the .nc file (default None)
+        prop2: str or None
+            Property to plot on y axes. Must be the short name in the .nc file (default None)
+        xlabel: str or None
+            xlabel (default None)
+        ylabel: str or None
+            ylabel (default None)
+        xlim: TODO CHANGE
+        ylim: TODO CHANGE
+        linewidth: int
+            linewidth (default 2)
+        legend: TODO CHANGE
+        areagridpath: str
+            Path to npy file containg area of each 1 by 1 grid cell (default f"./supplementary_data/area_grid.npy")
+        biomegridpath: str
+            Path to npy file containing biome int labels for each 1 by 1 grid cell (default f"./supplementary_data/biomegrid2.npy")
+        group: str or None
+            Grouping of tracers. Choose between biome, lonmean, latmean or none (default None)
+        mhwintensitypath: TODO EXPLAIN
+        dpi: int
+            Output image resolution (default 300)
+        """
         
         logger.debug("Setting up figure.")
         plt.rcParams.update({'font.size': fontsize})
