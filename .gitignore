@@ -7,3 +7,4 @@ __pycache__/
 *.json
 
 !Luo_M_Eg_biome_data.json
+!/examples/sim_params.txt
