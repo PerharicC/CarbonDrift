@@ -84,7 +84,7 @@ class Plot:
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
                  biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None,
-                 mhwintesitypath = None):
+                 mhwintesitypath = None, dpi = 300):
         
         logger.debug("Setting up figure.")
         plt.rcParams.update({'font.size': fontsize})
@@ -237,6 +237,7 @@ class Plot:
             self.labels = legend.split(",")
             self.legend = True
 
+        self.dpi = dpi
     
     @staticmethod
     def get_cmap(x, map):
@@ -434,7 +435,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 
@@ -653,7 +654,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
     
@@ -805,7 +806,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 
@@ -938,7 +939,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 
@@ -1026,7 +1027,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 
@@ -1250,7 +1251,7 @@ class Plot:
         
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()     
     
@@ -1373,7 +1374,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 
@@ -1525,7 +1526,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
     
@@ -1586,7 +1587,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
             
@@ -1646,7 +1647,7 @@ class Plot:
 
         if self.outfile is not None:
             logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = 300, bbox_inches = "tight")
+            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
 

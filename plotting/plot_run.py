@@ -78,6 +78,7 @@ def main():
     p.add_argument("-supt", "--suptitle", type = str,
                    help = "Titles for specific axes. Format ax1title,ax2title...")
     p.add_argument("-mhwpath", "--mhwintesitypath", type = str)
+    p.add_argument("-dpi", default=300, type=int)
 
     args = p.parse_args()
     return plot(**vars(args))
