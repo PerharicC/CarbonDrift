@@ -94,12 +94,10 @@ class Plot:
             Unlimited number of string simulation paths. At least one is required!
         cmap: str or None
             Matplolib cmap name (default None)
-        color: str or None
-            String of colors separated by ','. E.g red,blue,orange (number of colors should match
-            number of files, unless they are added) (default None)
-        linestyle: str or None
-            String of linestyles separated by ','. E.g solid,dashed,dotted (number of linestyles should match
-            number of files, unless they are added) (default None)
+        color: list or None
+            List of matplolib color names. E.g ["red","blue","orange"] (default None)
+        linestyle: list or None
+            List of linestyles. E.g. ["solid","dashed","dotted"] (default None)
         lons: numpy array or None
             Specific longitudes to use in plotting methods. If None the np.array(-180,180,1) is asummed.
         lons: numpy array or None
@@ -132,7 +130,8 @@ class Plot:
             Outfile path, if None plt.show() is called (default None)
         shrink: float
             Coorbar shrink (default 1)
-        clip: TODO CHANGE
+        clip: list of length 2
+            Len 2 list with min and max value for clipping (default None)
         locations: list of tuples or None
             Locations for dynamics analysis. Example [(longitude1, latitude1), (longitude2, latitude2),...]
             (default None)
@@ -146,11 +145,14 @@ class Plot:
             xlabel (default None)
         ylabel: str or None
             ylabel (default None)
-        xlim: TODO CHANGE
-        ylim: TODO CHANGE
+        xlim: list of length 2
+            Len 2 list with min and max value for xlim (default None)
+        ylim: list of length 2
+            Len 2 list with min and max value for ylim (default None)
         linewidth: int
             linewidth (default 2)
-        legend: TODO CHANGE
+        legend: list or None
+            List of legend labels (default None)
         areagridpath: str
             Path to npy file containg area of each 1 by 1 grid cell (default f"./supplementary_data/area_grid.npy")
         biomegridpath: str
@@ -161,7 +163,7 @@ class Plot:
         dpi: int
             Output image resolution (default 300)
         """
-        
+
         logger.debug("Setting up figure.")
         plt.rcParams.update({'font.size': fontsize})
         fig, ax = plt.subplots(1, 1, figsize = figsize)
@@ -204,14 +206,11 @@ class Plot:
         self.depth = depth
         self.cmap = cmap
         self.bins = bins
-        if color is None:
-            self.color = None
-        else:
-            self.color = color.split(",")
+        self.color = color
         if linestyle is None:
             self.linestyle = ["solid", "dashed", "dotted", "dashdot", (0, (3, 5, 1, 5, 1, 5))]
         else:
-            self.linestyle = linestyle.split(",")
+            self.linestyle = linestyle
         
         if lons is None:
             logger.warning("Lons is not given - asumming 1 degree resolution over all space.")
@@ -255,7 +254,7 @@ class Plot:
             self.clip = False
         else:
             self.clip = True
-            self.Vmin, self.Vmax = [float(i.replace("m", "-")) for i in clip.split(":")]
+            self.Vmin, self.Vmax = clip
 
         # if loclines is None:
         #     self.loclines = False
@@ -277,40 +276,15 @@ class Plot:
         self.cb_units = colorbarlabel
         self.xlabel = xlabel
         self.ylabel = ylabel
-        if xlim is not None:
-            x1, x2 = xlim.split(":")
-            if "m" in x1:
-                x1 = -float(x1.strip("m"))
-            else:
-                x1 = float(x1)
-            if "m" in x2:
-                x2 = -float(x2.strip("m"))
-            else:
-                x2 = float(x2)
-            self.xlim = [x1, x2]
-        else:
-            self.xlim = None
-        
-        if ylim is not None:
-            y1, y2 = ylim.split(":")
-            if "m" in y1:
-                y1 = -float(y1.strip("m"))
-            else:
-                y1 = float(y1)
-            if "m" in y2:
-                y2 = -float(y2.strip("m"))
-            else:
-                y2 = float(y2)
-            self.ylim = [y1, y2]
-        else:
-            self.ylim = None
+        self.xlim = xlim
+        self.ylim = ylim
 
         self.lw = linewidth
 
         if legend is None:
             self.legend = False
         else:
-            self.labels = legend.split(",")
+            self.labels = legend
             self.legend = True
 
         self.dpi = dpi
@@ -399,11 +373,7 @@ class Plot:
         return array
 
     def mass_map(self):
-        """Plot the mass reached at depths [-200m, -1000m, sea_floor] over a cartopy map.
-
-        Parameters
-        -----------
-        """
+        """Plot the mass at depth over a cartopy map."""
 
         plt.close("all")
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
@@ -623,7 +593,7 @@ class Plot:
         return np.arange(0, n * dt, dt)
 
     def clean_dataset(self, obj):
-        """Get indicies of trajectories which are on land / do not interact (mass stays one forever) or had a problem with reading the temperature."""
+        """Get indicies of trajectories which are on land / have any other problems."""
 
         from global_land_mask import globe
 
@@ -666,6 +636,7 @@ class Plot:
         return bad_trajectories
     
     def current_strength(self):
+        """Plot horizontal distance traveled between intial position and position at some depth, for ecah grid cell."""
         plt.close()
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, subplot_kw={'projection': ccrs.PlateCarree()})
         
@@ -851,7 +822,10 @@ class Plot:
                 continue
             if self.color is not None:
                 if len(self.color) >1:
-                    color = self.color[k]
+                    if k >= len(self.color):
+                        color = None
+                    else:
+                        color = self.color[k]
                 else:
                     color = self.color[0]
             else:
@@ -971,7 +945,11 @@ class Plot:
                         Y /= Y[0]
                 
                 if self.color is not None:
-                    color = self.color[k % len(self.color)]
+                    try:
+                        color = self.color[k % len(self.color)]
+                    except IndexError:
+                        logger.warning(f"Setting color to None for object number {k}", exc_info=IndexError)
+                        color = None
                 else:
                     color = None
                 linestyle = self.linestyle[k % len(self.linestyle)]
@@ -1020,6 +998,7 @@ class Plot:
             plt.show()
 
     def z_tau(self):
+        """Plot deph to inverse decay rate 'tau' dependency."""
         plt.close()
 
         if self.loc is None:
@@ -1074,7 +1053,11 @@ class Plot:
                 y = y[:, idx]
                 
                 if self.color is not None:
-                    color = self.color[k % len(self.color)]
+                    try:
+                        color = self.color[k % len(self.color)]
+                    except IndexError:
+                        logger.warning(f"SettinG color to None for object number {k}", exc_info=IndexError)
+                        color = None
                 else:
                     color = None
                 linestyle = self.linestyle[k % len(self.linestyle)]
@@ -1106,8 +1089,6 @@ class Plot:
             plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
         else:
             plt.show()
-
-
 
     def get_mass_sum_at_depth(self):
 
@@ -1333,9 +1314,6 @@ class Plot:
     
     def mass_flux_map(self):
         """Plot the mass flux reached at given depth on world map.
-
-        Parameters
-        -----------
         """
 
         plt.close("all")
@@ -1455,15 +1433,7 @@ class Plot:
             plt.show()
 
     def animate_3D(self):
-        """
-        A 3d animation of the simulation.
-        
-        Parameters
-        ----------
-        k: float
-            The scale factor for markersize (default: 1)
-        outfile: str
-            File name for saved animation (default: None)"""
+        """A 3d animation of the simulation."""
         
         plt.close()
 
@@ -1552,6 +1522,7 @@ class Plot:
             plt.show()
 
     def mean_lon_mass_flux(self):
+        """Plot latitude vs longitude averaged mass fluxes"""
         area = np.load(self.areagridpath).T
         logger.debug("Searching for bad trajectories.")
         bad = self.clean_dataset(self.objects[0])
@@ -1577,11 +1548,19 @@ class Plot:
             mean_lon_flux = np.ma.mean(flux, axis = 0)
             # print(mean_lon_flux.shape)
             if self.color is not None:
-                color = self.color[mnum]
+                try:
+                    color = self.color[mnum]
+                except IndexError:
+                    color = "black"
+                    logger.warning(f"Setting color to None.", exc_info=IndexError)
             else:
                 color = "black"
             if self.linestyle is not None:
-                ls = self.linestyle[mnum]
+                try:
+                    ls = self.linestyle[mnum]
+                except IndexError:
+                    ls = "solid"
+                    logger.warning(f"Setting linestyle to solid.", exc_info=IndexError)
             else:
                 ls = "solid"
             if self.legend is not None:
@@ -1607,6 +1586,7 @@ class Plot:
             plt.show()
     
     def mass_flux_distribution(self):
+        """Mass flux distributions at some depth for different grouping of tarcers."""
         area = np.load(self.areagridpath).T
         logger.debug("Searching for bad trajectories.")
         bad = []
@@ -1800,5 +1780,3 @@ class Plot:
         
         logger.debug("Finish summing masses.")
         return mass_by_biomes * 10 ** (-15)
-
-        

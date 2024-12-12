@@ -31,6 +31,43 @@ def configure_locations(s:str):
         proper_format_locs.append((lon, lat))
     return proper_format_locs
 
+def configure_clipping(s:str):
+    if ":" not in s:
+        raise argparse.ArgumentTypeError(f"not a valid clip format: {s!r}")
+    clipmin, clipmax = s.split(":")
+    if "m" in clipmin:
+        clipmin = -float(clipmin.strip("m"))
+    else:
+        clipmin = float(clipmin)
+    if "m" in clipmax:
+        clipmax = -float(clipmax.strip("m"))
+    else:
+        clipmax = float(clipmax)
+    return [clipmin,clipmax]
+
+def configure_linestyles(s:str):
+    return s.split(",")
+
+def configure_ax_limits(s:str):
+    if ":" not in s:
+        raise argparse.ArgumentTypeError(f"not a valid xlim/ylim format: {s!r}")
+    x1, x2 = s.split(":")
+    if "m" in x1:
+        x1 = -float(x1.strip("m"))
+    else:
+        x1 = float(x1)
+    if "m" in x2:
+        x2 = -float(x2.strip("m"))
+    else:
+        x2 = float(x2)
+    return [x1, x2]
+
+def configure_color(s:str):
+    return s.split(",")
+
+def configure_legend(s:str):
+    return s.split(",")
+
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument("method", type = str, help = "Ploting method to call.")
@@ -53,7 +90,7 @@ def main():
     p.add_argument("-fwgt", "--fontweight", type = str, default="normal")
     p.add_argument("-d", "--depth", type = float, default=-200,
                    help = "Depth at which calculation takes place. If >= 5000 (<=-5000), it is set to sea floor.")
-    p.add_argument("-clip", type = str, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
+    p.add_argument("-clip", type = configure_clipping, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
     p.add_argument("-sh", "--shrink", type = float, default=1, help = "Shrink colorbar value.")
     p.add_argument("-lines", "--loclines", action="store_true")
     p.add_argument("-loc", "--locations", type = str,
@@ -63,12 +100,12 @@ def main():
     p.add_argument("-cblabel", "--colorbarlabel", type = str)
     p.add_argument("-xlabel", type = str)
     p.add_argument("-ylabel", type = str)
-    p.add_argument("-xlim", type = str, help = "Xlim - format xmin:xmax")
-    p.add_argument("-ylim", type = str, help = "Ylim - format ymin:ymax")
+    p.add_argument("-xlim", type = configure_ax_limits, help = "Xlim - format xmin:xmax")
+    p.add_argument("-ylim", type = configure_ax_limits, help = "Ylim - format ymin:ymax")
     p.add_argument("-lw", "--linewidth", type = float)
-    p.add_argument("-legend", type = str, help="Legend - format label1,label2")
-    p.add_argument("-color", type = str, help = "Plot color - format color1,color2,color3...")
-    p.add_argument("-ls", "--linestyle", type = str, help = "Plot linestlyes - format ls1,ls2,ls3...")
+    p.add_argument("-legend", type = configure_legend, help="Legend - format label1,label2")
+    p.add_argument("-color", type = configure_color, help = "Plot color - format color1,color2,color3...")
+    p.add_argument("-ls", "--linestyle", type = configure_linestyles, help = "Plot linestlyes - format ls1,ls2,ls3...")
     p.add_argument("-bins", type = int, help = "Histogram bins.")
     p.add_argument("-group", type = str, default="none", 
                    choices=["none", "biome", "lonmean", "latmean"], help = "Group cells by.")
