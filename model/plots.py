@@ -678,7 +678,7 @@ class Plot:
         # stranded_label = Line2D([0], [0], color='orange', lw=2)
 
         # ax.legend([incell_label, seafloor_label, stranded_label], ['moved out of cell', "seafloor", "stranded"], loc='upper right')
-        ax.legend([seafloor_label], ["morsko dno"], loc="upper right")
+        ax.legend([seafloor_label], ["seafloor"], loc="upper right")
 
         cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
@@ -918,13 +918,23 @@ class Plot:
                     logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
                     continue
                 
-                if self.prop1 != "time":
+                if self.prop1 == "total_horizontal_velocity":
+                    u = obj.get_property("x_sea_water_velocity")
+                    v = obj.get_property("y_sea_water_velocity")
+                    x = np.sqrt(u ** 2 + v ** 2)
+                    x = np.ma.filled(x, np.nan)
+                elif self.prop1 != "time":
                     x = obj.get_property(self.prop1)
                     x = np.ma.filled(x, np.nan)
                 else:
                     x = self.create_timedelta_array(lon.shape[0], k)
                 
-                if self.prop2 != "time":
+                if self.prop2 == "total_horizontal_velocity":
+                    u = obj.get_property("x_sea_water_velocity")
+                    v = obj.get_property("y_sea_water_velocity")
+                    y = np.sqrt(u ** 2 + v ** 2)
+                    Y = np.ma.filled(x, np.nan)
+                elif self.prop2 != "time":
                     y = obj.get_property(self.prop2)
                     y = np.ma.filled(y, np.nan)
                 else:
