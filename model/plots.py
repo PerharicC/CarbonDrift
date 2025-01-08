@@ -184,6 +184,7 @@ class Plot:
 
         self.objects =  []
         self.decay_type = []
+        self.initial_velocities = []
         for k in range(len(files)):
             obj = Open(files[k])
             setattr(self, "obj" + str(k + 1), obj)
@@ -193,6 +194,7 @@ class Plot:
                 with open(param_file, "r") as f:
                     param = json.load(f)
                     self.decay_type.append(param["decaytype"])
+                    self.initial_velocities.append(param["initialvelocity"])
                 f.close()
         
         logger.debug("Adding attributes.")
@@ -534,6 +536,9 @@ class Plot:
 
     # @jit(nopython = True)
     def mass_sum(self, lons, lats, depth, z, mass, lon, lat, status, sfidx, bad):
+        '''
+        Return mass at each grid cell at given depth.
+        '''
         logger.debug("Start summing masses.")
         mass_at_depth = np.zeros((len(lons), len(lats)))
         for i in range(mass.shape[1]):
@@ -658,7 +663,7 @@ class Plot:
         distance, in_cell, is_at_seafloor, is_stranded = self.calculate_horizontal_distance(self.obj1, self.lons, self.lats, bad)
         
         D = np.copy(distance)
-        rows, cols = np.where(D == 0)
+        rows, cols = np.where(D == 0) #Land
         D[rows, cols] = np.nan
         # rows2, cols2 = np.where(in_cell == 0)
         # D[rows2, cols2] = np.nan
@@ -706,6 +711,19 @@ class Plot:
             plt.show()
     
     def calculate_horizontal_distance(self, obj: Open, lons, lats, bad):
+        '''
+        Calculate horizontal distanace between initial position and position at given depth for each grid cell.
+        
+        Returns
+        -------
+        distance traveled
+            ndarray of size (lon,lat) with distances
+        is_in_cell
+            boolean ndarray of size (lon, lat) of drifters which are still in the same cell as in the beegining
+        is_at_seafloor
+            boolean ndarray of size (lon, lat) of drifters which have reached the seafloor
+        is_stranded
+            boolean ndarray of size (lon, lat) of drifters which were stranded on the castline'''
 
         from haversine import haversine, Unit
         from tqdm import trange
@@ -1252,6 +1270,9 @@ class Plot:
         return np.load(self.areagridpath)
 
     def mean_export_biome_flux(self):
+        '''
+        Bar plot of mean fluxes of multiple groups (e.g. Cnidaria egestion, Ctenophora mortality...) for each biome.
+        '''
         logger.debug("Setting up figure.")
         plt.close()
         fig = plt.figure(figsize = self.figsize)
@@ -1475,9 +1496,12 @@ class Plot:
                 cmap = "jet"
 
         k = 1 / mass[0, :]
-        dt = (self.time[1]-self.time[0]).total_seconds()
-        idx = np.where(np.invert(np.isnan(mass[1, :])))[0][0]
-        w0 = abs((z[1, idx] - z[0, idx]) * (mass[0, idx]/mass[1, idx]) ** (1/6) / dt)*24*3600
+        dt = (self.time[0][1]-self.time[0][0]).total_seconds()
+        idx = np.where(np.invert(np.logical_or(np.isnan(mass[1, :]), np.isnan(z[1, :]))))[0][0]
+        try:
+            w0 = abs(self.initial_velocities[0]) * 24 * 3600
+        except Exception:
+            w0 = abs((z[1, idx] - z[0, idx]) * (mass[0, idx]/mass[1, idx]) ** (1/6) / dt)*24*3600
         sc = ax.scatter(lon[0, :], lat[0, :], z[0, :], s=mass[0, :] * k, c = w0 * np.ones(len(mass[0, :])), cmap = cmap, vmin=0, vmax = w0)
 
         
@@ -1494,7 +1518,7 @@ class Plot:
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_zlim(*zlim)
-        ax.set_title(self.time[0])
+        ax.set_title(self.time[0][0])
         ax.view_init(elev=10, azim=45, roll=0)
 
         cb = plt.colorbar(sc, shrink = self.shrink)
@@ -1515,10 +1539,10 @@ class Plot:
             w = abs((z[i - 1, idx] - z[i, idx]) / dt)*24*3600
             sc = ax.scatter(lon[i, idx], lat[i, idx], z[i, idx], s=mass[i, idx] * k[idx], c = w, cmap = cmap, vmin=0, vmax = w0)
             cb.update_normal(sc)
-            ax.set_title(self.time[i])
+            ax.set_title(self.time[0][i])
             ax.view_init(elev=10, azim=45, roll=0)
 
-        frames = len(self.time)
+        frames = len(self.time[0])
 
         logger.debug("Initializing animation.")
         anim=animation.FuncAnimation(fig, update, blit=False, frames = frames, interval=100)
@@ -1580,7 +1604,11 @@ class Plot:
             plt.plot(self.lats, mean_lon_flux, color = color, linewidth = self.lw, label = label, ls = ls)
         if self.xlabel is not None: plt.xlabel(f"{self.xlabel}")
         if self.ylabel is not None: plt.ylabel(f"{self.ylabel}")
-        if self.xlim is not None: plt.xlim(*self.xlim)
+        if self.xlim is not None:
+            plt.xlim(*self.xlim)
+        else:
+            plt.xlim((-90, 90))
+            plt.xticks([-90, -45, 0, 45, 90], [r"$-90^\circ$", r"$-45^\circ$",r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
         if self.ylim is not None: plt.ylim(*self.ylim)
         if self.legend is not None: plt.legend()
         plt.grid()
@@ -1790,3 +1818,157 @@ class Plot:
         
         logger.debug("Finish summing masses.")
         return mass_by_biomes * 10 ** (-15)
+
+    def animate_current_3D(self):
+        """A 3d and 2d current animation of the simulation.
+        Sizes of particles are relative to their initial mass."""
+        
+        plt.close()
+
+        fig = plt.figure(figsize=self.figsize)
+        ax = fig.add_subplot(121, projection='3d')
+        ax2 = fig.add_subplot(122, projection = ccrs.PlateCarree())
+        
+        logger.debug("Reading required simulation properties.")
+        lon = self.obj1.get_property('lon')
+        lon = np.ma.filled(lon, np.nan)
+
+        lat = self.obj1.get_property("lat")
+        lat = np.ma.filled(lat, np.nan)
+
+        z = self.obj1.get_property('z')
+        z = np.ma.filled(z, np.nan)
+
+        mass = self.obj1.get_property("mass")
+        mass = np.ma.filled(mass, np.nan)
+
+        status = self.obj1.get_property("status")
+        status = np.ma.MaskedArray(status.data, status.mask, float)
+        status = np.ma.filled(status, np.nan)
+        seafloor_tracker = {"lon":[], "lat":[], "z":[], "m":[]}
+        u = self.obj1.get_property("x_sea_water_velocity")
+        v = self.obj1.get_property("y_sea_water_velocity")
+        U = np.sqrt(u ** 2 + v ** 2)
+        U = np.ma.filled(U, np.nan)
+        
+        logger.debug("Initialize colormap.")
+        if self.cmap is None:
+            logger.warning("Colormap hasn't been provided, using jet.")
+            cmap = mpl.cm.jet
+        else:
+            try:
+                cmap = getattr(mpl.cm, self.cmap)
+            except AttributeError:
+                logger.debug("Specified colormap doesn't exist, changing to jet.")
+                cmap = "jet"
+
+        dt = (self.time[0][1]-self.time[0][0]).total_seconds()
+        idx = np.where(np.invert(np.logical_or(np.isnan(mass[1, :]), np.isnan(z[1, :]))))[0][0]
+        try:
+            w0 = abs(self.initial_velocities[0]) * 24 * 3600
+        except Exception:
+            w0 = abs((z[1, idx] - z[0, idx]) * (mass[0, idx]/mass[1, idx]) ** (1/6) / dt)*24*3600
+        
+        lonlim = np.where((lon[0,:]>=self.xlim[0]) & (lon[0,:]<=self.xlim[1]))[0]
+        latlim = np.where((lat[0,:]>=self.ylim[0]) & (lat[0,:]<=self.ylim[1]))[0]
+        intersectlim = np.intersect1d(lonlim, latlim)
+        xlim = [np.min(lon[:, intersectlim][np.invert(np.isnan(lon[:, intersectlim]))]),
+                np.max(lon[:, intersectlim][np.invert(np.isnan(lon[:, intersectlim]))])]
+        ylim = [np.min(lat[:, intersectlim][np.invert(np.isnan(lat[:, intersectlim]))]),
+                np.max(lat[:, intersectlim][np.invert(np.isnan(lat[:, intersectlim]))])]
+        zlim = [np.min(z[:, intersectlim][np.invert(np.isnan(z[:, intersectlim]))]),
+                np.max(z[:, intersectlim][np.invert(np.isnan(z[:, intersectlim]))])]
+        U0 = np.max(U[:, intersectlim][np.invert(np.isnan(U[:, intersectlim]))])
+        zmin = zlim[0]
+        k = 1 / mass[0, intersectlim]*100
+        sc = ax.scatter(lon[0, intersectlim], lat[0, intersectlim], z[0, intersectlim],
+                        s=mass[0, intersectlim] * k, c = U[0, intersectlim], cmap = cmap, vmin=0, vmax = U0)
+        sc2 = ax2.scatter(lon[0, intersectlim], lat[0, intersectlim], s=mass[0, intersectlim] * k,
+                           c=z[0, intersectlim], cmap = cmap, vmin=zmin, vmax = 0)
+        ax2.quiver(lon[0, :], lat[0, :], u[0, :], v[0, :], color='b', units='xy', scale=1/5)
+        # ax.scatter(lon[0, intersectlim], lat[0, intersectlim], z[0, intersectlim], s=mass[0, intersectlim] * k, c = U[0, intersectlim], cmap = cmap, vmin=0, vmax = U0)
+        logger.debug("Setting up axes properties.")
+        ax.yaxis.labelpad=30
+        ax.xaxis.labelpad=30
+        ax.zaxis.labelpad=30
+        ax.set_xlabel("lon")
+        ax.set_ylabel("lat")
+        ax.set_zlabel("z")
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_zlim(*zlim)
+        fig.suptitle(self.time[0][0])
+        ax.view_init(elev = 8, azim=45, roll=0)
+        
+        cb = plt.colorbar(sc, shrink = self.shrink, orientation = "horizontal")
+        cb.set_label(r"$|\vec{u}_H(t)|\,\mathrm{[m\,s^{-1}]}$")
+
+        ax2.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
+        gl = ax2.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                          linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
+        ax2.set_xlabel("lon")
+        ax2.set_ylabel("lat")
+        ax2.set_xlim(*xlim)
+        ax2.set_ylim(*ylim)
+        ax2.grid()
+
+        cb2 = plt.colorbar(sc2, shrink = self.shrink, orientation = "horizontal")
+        cb2.set_label(r"$z\,\mathrm{[m]}$")
+
+        cbticks = cb.get_ticks()
+        cb2ticks = cb2.get_ticks()
+
+        def update(i):
+            ax.cla()
+            ax2.cla()
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+            ax.set_zlim(*zlim)
+            ax2.set_xlim(*xlim)
+            ax2.set_ylim(*ylim)
+            ax.yaxis.labelpad=30
+            ax.xaxis.labelpad=30
+            ax.zaxis.labelpad=30
+            ax.set_xlabel("lon")
+            ax.set_ylabel("lat")
+            ax.set_zlabel("z")
+            ax2.set_xlabel("lon")
+            ax2.set_ylabel("lat")
+            idx = np.where(np.invert(np.isnan(lon[i, :])))[0]
+            idx = np.intersect1d(idx, intersectlim)
+            sf = np.where(status[i, :] == self.seafloor_idx)[0]
+            sf = np.intersect1d(sf, intersectlim)
+            for da_tracer in sf:
+                seafloor_tracker["lon"].append(lon[i, da_tracer])
+                seafloor_tracker["lat"].append(lat[i, da_tracer])
+                seafloor_tracker["z"].append(z[i, da_tracer])
+                seafloor_tracker["m"].append(mass[i, da_tracer]/mass[0, da_tracer]*100)
+            k = 1 / mass[0, idx]*100
+            sc = ax.scatter(lon[i, idx], lat[i, idx], z[i, idx], s=mass[i, idx] * k, c = U[i, idx], cmap = cmap, vmin=0, vmax = U0)
+            sc2 = ax2.scatter(lon[i, idx], lat[i, idx], s=mass[i, idx] * k, c=z[i, idx], cmap = cmap, vmin=zmin, vmax = 0)
+            ax2.quiver(lon[i, idx], lat[i, idx], u[i, idx], v[i, idx], color='b', units='xy', scale=1/5)
+            ax.scatter(seafloor_tracker["lon"], seafloor_tracker["lat"], seafloor_tracker["z"], color = "black", s=seafloor_tracker["m"])
+            ax2.scatter(seafloor_tracker["lon"], seafloor_tracker["lat"], color = "black", s=seafloor_tracker["m"])
+            ax2.grid()
+            ax2.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
+            gl = ax2.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                          linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
+            cb.update_normal(sc)
+            cb2.update_normal(sc2)
+            # cb.set_ticks(cbticks)
+            # cb2.set_ticks(cb2ticks)
+            fig.suptitle(self.time[0][i])
+            ax.view_init(elev=8, azim=45, roll=0)
+
+        frames = len(self.time[0])
+
+        logger.debug("Initializing animation.")
+        anim=animation.FuncAnimation(fig, update, blit=False, frames = frames, interval=100)
+
+        if self.outfile is not None:
+            logger.debug("Adding PillowWriter to animation.")
+            writer = animation.PillowWriter(fps=10)
+            logger.debug("Saving animation.")
+            anim.save(self.outfile, writer = writer)
+        else:
+            plt.show()
