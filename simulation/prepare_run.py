@@ -21,6 +21,7 @@ class PrepareSimulation:
         move_to_ocean = kwargs.pop("oceanonly")
         self.microbialdecaytype = kwargs.pop("microbialdecaytype")
         seeddata = kwargs.pop("seeddata")
+        sf = kwargs.pop("splitfactor")
         logger.debug("Classifying parameters.")
         self.p = Parameters(kwargs)
         logger.debug("Defining initial position of particles.")
@@ -33,7 +34,7 @@ class PrepareSimulation:
         if simulation_type == "normal":
             self.initialize_normal_run()
         elif simulation_type == "grid":
-            self.initialize_grid_run()
+            self.initialize_grid_run(sf)
         else:
             raise NameError(simulation_type + " has not yet been implemented.")
     
@@ -57,12 +58,16 @@ class PrepareSimulation:
         readers.append(reader_global_landmask.Reader())
         return readers
     
-    def initialize_grid_run(self):
+    def initialize_grid_run(self, sf):
         self.p.object_init["reader"] = self.readers
         self.p.object_init["configure"] = self.config
         self.p.object_init["lon"] = self.seeder.lon
         self.p.object_init["lat"] = self.seeder.lat
         self.p.object_init["m0"] = copy(self.seeder.mass)
+        self.p.object_init["z"] = self.seeder.z
+        self.p.object_init["split_factor"] = sf
+        if hasattr(self.seeder, "origin_marker"):
+            self.p.object_init["origin_marker"] = self.seeder.origin_marker
         if self.microbialdecaytype == "mass":
             self.obj = mcdgrid.GridRun(**self.p.object_init)
         elif self.microbialdecaytype == "area":

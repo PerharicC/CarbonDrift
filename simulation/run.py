@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import argparse
-
+import numpy as np #This must be here for proper evaluation of the fragmentation function!!!
 from simulation.prepare_run import PrepareSimulation
 
 from model.logger import Logger
@@ -144,6 +144,8 @@ def main():
     p.add_argument("-wtype", "--vertical_velocity_type", type = str, choices = ["constant", "variable"], default = "variable")
     p.add_argument("-ev", "--export_variables", type = valid_export_variables, default=valid_export_variables("0"),
     help = "Export variables. Either separate variables with , or specify export level with number (0 for all variables (default)).")
+    p.add_argument("-sf", "--splitfactor", type = int, default=1,
+                   help="Split simulation to n subsimulations using grid simulation_type.")
     args = p.parse_args()
     run_simulation(**vars(args))
 

@@ -40,11 +40,13 @@ class GridRun:
             Merge and delete all individual files (default True)
         + All key arguments for CarbonDrift.
         """
-
-        self.time = kwargs.pop("starttime", datetime.now())
-        self.reader = kwargs.pop("reader", None)
-        self.lon = kwargs.pop("lon", 0)
-        self.lat = kwargs.pop("lat", 0)
+        self.time = kwargs.pop("starttime")
+        self.reader = kwargs.pop("reader", [])
+        self.lon = kwargs.pop("lon")
+        self.lat = kwargs.pop("lat")
+        self.z = kwargs.pop("z")
+        self.m0 = kwargs["m0"]
+        self.origin_marker = kwargs.pop("origin_marker", None)
         self.config = kwargs.pop("configure", {})
         self.deactivate_frag = kwargs.pop("deactivate_fragmentation", False)
         self.deactivate_ha = kwargs.pop("deactivate_horizontal_advection", False)
@@ -67,18 +69,16 @@ class GridRun:
             
             for key, value in self.config.items():
                 o.set_config(key, value)
-            try:
-                mass = np.ones(self.lon.shape[0] * self.lat.shape[1])
-            except AttributeError:
-                mass = np.ones(len(self.lon))
-            o.seed_elements(lon = self.lon, lat = self.lat, z = 0, time = self.time, mass = mass)
+            o.seed_elements(lon = self.lon, lat = self.lat, z = self.z,
+                            time = self.time, mass = self.m0, origin_marker = self.origin_marker)
 
             o.run(**kwargs)
         else:    
-            lons, lats = self.split()
+            lons, lats, z, mass, origin_marker = self.split()
             self.filename = copy(kwargs["outfile"]).split(".")[0]
 
             for i in range(len(lons)):
+                self.o_kwargs["m0"] = mass[i]
                 o = CarbonDrift(**self.o_kwargs)
 
                 if self.reader is not None:
@@ -92,8 +92,8 @@ class GridRun:
                 for key, value in self.config.items():
                     o.set_config(key, value)
 
-                o.seed_elements(lon = lons[i], lat = lats[i], z = 0, time = self.time, mass = np.ones(len(lons[i])))
-
+                o.seed_elements(lon = lons[i], lat = lats[i], z = z[i],
+                                time = self.time, mass = mass[i], origin_marker = origin_marker[i])
                 kwargs["outfile"] = self.filename + str(i) + ".nc"
                 o.run(**kwargs)
                 del o
@@ -102,23 +102,20 @@ class GridRun:
                 self.merge_files(len(lons))
 
     def split(self):
-        num = self.lon.shape[0] * self.lon.shape[1]
-        idx = num // self.split_factor
-
-        lons = []
-        lats = []
-        lon = self.lon.flatten()
-        lat = self.lat.flatten()
-        for i in range(0, len(lon), idx):
-            j = i + idx
-            if j > len(lon):
-                j = len(lon)
-            
-            if np.all(np.isnan(lon[i:j])) or np.all(np.isnan(lat[i:j])):
-                continue
-            lons.append(lon[i:j])
-            lats.append(lat[i:j])
-        return lons, lats
+        array_sizes = [len(self.lon) // self.split_factor] * self.split_factor
+        for i in range(len(self.lon) % self.split_factor):
+            array_sizes[i] += 1
+        
+        indices = np.cumsum(array_sizes[:-1])
+        lons = np.split(self.lon, indices)
+        lats = np.split(self.lat, indices)
+        z = np.split(self.z, indices)
+        mass = np.split(self.m0, indices)
+        if self.origin_marker is not None:
+            origin_marker = np.split(self.origin_marker, indices)
+        else:
+            origin_marker = None
+        return lons, lats, z, mass, origin_marker
     
     def merge_files(self, num):
         from tqdm import trange
