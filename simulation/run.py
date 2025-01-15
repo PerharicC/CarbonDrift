@@ -57,7 +57,60 @@ def valid_export_variables(s):
     for  var in variables:
         if var not in valid_vars:
             raise argparse.ArgumentError(f"Export variable {var} is not a valid CarbonDrift variable.")
-        return variables
+    return variables
+
+
+def prepare_fragmentation(function_code):
+    def get_variable_from_code(s):
+        var = ""
+        for k in s:
+            if k == ";":
+                break
+            var+=k
+        return var
+    
+    modified_code = ""
+    dictionary_of_variables = {
+        "T":"environment.sea_water_temperature",
+        "m": "elements.mass",
+        "u": "environment.x_sea_water_velocity",
+        "v": "environment.y_sea_water_velocity",
+        "uh": "np.sqrt(environment.x_sea_water_velocity**2 + environment.y_sea_water_velocity ** 2)",
+        "z": "elements.z",
+        "m0": "m0"
+        }
+    variable_keys = dictionary_of_variables.keys()
+    found = False
+
+    i = 0
+    while i < len(function_code):
+        s = function_code[i]
+        if s != ";":
+            modified_code += s
+            i+=1
+            continue
+        var = get_variable_from_code(function_code[i+1:])
+        
+        for key in variable_keys:
+            if key == var:
+                found = True
+                break
+        if not found:
+            raise NameError(f"Variable {var} not in variable list {variable_keys}.")
+        
+        modified_code += dictionary_of_variables[key]
+        found = False
+        i+= (2 + len(var))
+    return lambda elements, environment, m0: eval(modified_code)
+
+def valid_fragmentation_function(s):
+    try:
+        return prepare_fragmentation(s)
+    except Exception as e:
+        print(f"When trying to set-up the fragmentation function, the following error was raised: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        raise
+
 
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
@@ -74,8 +127,8 @@ def main():
                    help = "Start time of simulation - format YYYY-MM-DD-h")
     p.add_argument("-w0", "--initialvelocity", default = -0.01, type = float,
                    help = "Initial velocity in m/s, positive up. Deafult is -0.01 m/s.")
-    p.add_argument("-dist", "--distribution", required = False, default = "mass_sqrt",
-                   help = "Fragmentation distribution function.")
+    p.add_argument("-ffunc", "--ffunction", required = False, type=valid_fragmentation_function,
+                   help = "Fragmentation function, variables must be enclosed in ;; - format np.sqrt(;T;) / ;u; ** 2>np.random(len(;T;))")
     p.add_argument("-f", "--fragmentation", action="store_false", help = "Set if fragmentation should be allowed.")
     p.add_argument("-a", "--advection", action="store_false", help = "Set if horizontal advection should be allowed.")
     p.add_argument("-st", "--steps", default=200, type = int, help = "Simulation steps.")

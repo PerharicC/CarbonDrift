@@ -20,7 +20,7 @@ class Parameters:
                 self.object_init["deactivate_horizontal_advection"] = value
             elif key == "fragmentation":
                 self.object_init["deactivate_fragmentation"] = value
-            elif key in ["loglevel", "starttime", "distribution", "vertical_velocity_type"]:
+            elif key in ["loglevel", "starttime", "ffunction", "vertical_velocity_type"]:
                 self.object_init[key] = value
             elif key == "timestep":
                 self.simulation_run["time_step"] = value

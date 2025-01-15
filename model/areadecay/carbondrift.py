@@ -62,20 +62,16 @@ class CarbonDrift(OceanDrift):
         """
         Parameters
         ----------
-        mass_threshold: float
-            The multiplication constant in the mass distribution. Should be between (0, 1] (default 1)
-        z_threshold: float
-            The multiplication constant in the z distribution. Should be between (0, 1] (default 1)
-        threshold: float
-            The multiplication constant in the combined mass/z distribution. Should be between (0, 1] (default 1)
         decay_stop: float
             The fraction of the initial mass at which the particles deactivate (default 0.00)
         initial_velocity: float
             The initial velocity of the particles (default -1)
         mass: float, ndarray
             The initial masses of all particles in grams (default 1 g)
-        distribution: str
-            Name of the method used as the decay distribution
+        ffunction: callable
+            Fragmentation function with 3 inputs, where the frist two will be Lagrangian3dArray elements and environment types,
+            while the third should be initial mass array.
+            E.g. f(elements, environment, m0):return elements.mass / m0 * environment.sea_water_temperature
         max_ram: float
             The ram threshold in GiB, which when exceeded splits the simulation into two subtasks 
             (only possible using the DivideAndConquerCarbonDrift module) (default None)
@@ -87,15 +83,12 @@ class CarbonDrift(OceanDrift):
         +All other arguments that OceanDrift can accept.
         """
         
-        self.mass_threshold = kwargs.pop("mass_threshold", 1)
-        self.z_threshold = kwargs.pop("z_threshold", 1)
-        self.threshold = kwargs.pop("threshold", 1)
         self.decay_stop = kwargs.pop("decay_stop", 0.)
         self.w0 = kwargs.pop("initial_velocity", -0.01)
         self.m0 = kwargs.pop("m0")
         # self.r0 = kwargs.pop("r0")
         # self.T0 = kwargs.pop("sea_surface_temperature")
-        distribution = kwargs.pop("distribution", "mass_sqrt")
+        self.frag_func = kwargs.pop("ffunction", None)
         self.max_ram = kwargs.pop("max_ram", None)
         self.max_num = kwargs.pop("max_num", None)
         self.decay_type = kwargs.pop("decay_type", "linear")
@@ -103,18 +96,12 @@ class CarbonDrift(OceanDrift):
         
         super(CarbonDrift, self).__init__(*args, **kwargs)
 
-        #Initialize fragmentation decay distribution.
-        """
-        dist = Decay_Functions(self.m0, depth_norm, self.mass_threshold, self.z_threshold, self.threshold)
-        self.func = dist.choose_distribution(distribution, plot_dist)(dist)
-        """
-
         #Initialize DivideAndConquer algorithm splitting attributes.
         self.pause = False
         self.resume = True
 
         #Allow fragmentation.
-        self.no_decay = False
+        self.disable_fragmentation_decay = False
 
         #Dont allow deactivation.
         self.deactivate = False
@@ -150,7 +137,7 @@ class CarbonDrift(OceanDrift):
         self.deactivate_elements(bottom, reason = "Reached_Sea_Floor")
         
 
-        if not self.no_decay and (self.expected_steps_calculation - 1) * self.time_step + self.start_time != self.time:
+        if not self.disable_fragmentation_decay and (self.expected_steps_calculation - 1) * self.time_step + self.start_time != self.time:
             self.create_new_particles(*self.fragmentation())
         
         #For DivideAndConquer.
@@ -164,7 +151,7 @@ class CarbonDrift(OceanDrift):
                 self.pause = True
     
     def deactivate_fragmentation(self):
-        self.no_decay = True
+        self.disable_fragmentation_decay = True
     
     def enable_deactivation(self):
         self.deactivate = True
@@ -196,28 +183,11 @@ class CarbonDrift(OceanDrift):
             return self.w0
         return self.w0 * (self.elements.mass / self.m0[self.elements.ID - 1]) ** (1 / 6)
 
-    def decay_check(self):
-        
-        """Check which particles will decay in this time step.
-
-        Returns
-        -------
-        ndarray:
-            Boolean ndarray of size equal to current particle number, where True means that the particle will decay.
-        """
-
-        mass = self.elements.mass
-        M = np.copy(mass)
-        size_check = M > self.decay_stop * self.m0
-        #Insure randomness.
-        np.random.seed()
-
-        return (self.threshold * self.func(mass, self.elements.z) > random(size = len(mass))) & size_check
-    
     def fragmentation(self):
         mass = self.elements.mass
         M = np.copy(mass)
-        decay = self.decay_check()
+        np.random.seed()
+        decay = self.frag_func(self.elements, self.environment, self.m0[self.elements.ID - 1])
         decay_particles_mass = M[decay]
         return decay, decay_particles_mass, decay_particles_mass * random(size = len(decay_particles_mass))
     
@@ -256,6 +226,10 @@ class CarbonDrift(OceanDrift):
             new_history, new_mask = self.update_history(orig_history.data, orig_history.mask, decay, ID, decay_IDS)
             new_history = np.ma.array(new_history, mask = new_mask)
             self.history = np.ma.vstack([self.history, new_history])
+            self.environment = np.append(self.environment, self.environment[decay_IDS - 1])
+            self.previous_lat = np.append(self.previous_lat, self.previous_lat[decay_IDS - 1])
+            self.previous_lon = np.append(self.previous_lon, self.previous_lon[decay_IDS - 1])
+            self.m0 = np.append(self.m0, self.m0[decay_IDS - 1])
     
     @staticmethod
     @jit(nopython = True, parallel = True)
