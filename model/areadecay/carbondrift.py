@@ -226,7 +226,7 @@ class CarbonDrift(OceanDrift):
             new_history, new_mask = self.update_history(orig_history.data, orig_history.mask, decay, ID, decay_IDS)
             new_history = np.ma.array(new_history, mask = new_mask)
             self.history = np.ma.vstack([self.history, new_history])
-            self.environment = np.append(self.environment, self.environment[decay_IDS - 1])
+            # self.environment = np.append(self.environment, self.environment[decay_IDS - 1])
             self.previous_lat = np.append(self.previous_lat, self.previous_lat[decay_IDS - 1])
             self.previous_lon = np.append(self.previous_lon, self.previous_lon[decay_IDS - 1])
             self.m0 = np.append(self.m0, self.m0[decay_IDS - 1])
