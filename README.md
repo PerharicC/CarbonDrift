@@ -90,13 +90,48 @@ The simulation can then be run as:
 ```
 An example of the parameter file and the bash script can be found in [examples/terminal_simulation_run.sh](examples/terminal_simulation_run.sh).
 
+### Fragmentation
+Fragmentation can be activated by adding the following line to your parameter file
+```
+--fragmentation
+```
+or just
+```
+-f
+```
+for short. Next the user should also **specify the fragmentation condition** in form of a python code. The variable should be a **boolean numpy array**. The CD **variables must be enclosed in semicolumns.** For example:
+
+```
+-ffunc
+np.logical__and(;m;>0.1, np.sqrt(;m; / ;m0;) * 0.2 > np.random.random(len(;m0;)))
+```
+
+The example above will first check if the mass is greater than 0.1 and then proceed to see, if its relative value is greater than some sampled random number. If both conditions are True, the particle will split into two particles, with masses sampled from a uniform distribution, where the total mass is preserved. The command line run method currently allows the use of the following variables:
+- **T** for sea water temperature
+- **m** for particle mass
+- **m0** for initial particle mass
+- **u** for x sea water velocity
+- **v** for y sea water velocity
+- **uh** for horizontal sea water velocity $\sqrt{u^2 + v^2}$
+- **z** for particle depth
+
+**Note:** The run time of a simulation can be significantly increased with fragmentation. Furthermore the ***memory usage*** can be ***substantial***, thus it is advised to run these simulations in ***grid mode*** by specifying
+
+```
+-sim
+grid
+-sf
+3
+```
+where sf is the ***split factor*** parameter, which splits the simulation into given number of simulations (i.e. in this case 3 sub-simulations).
+
 ### Important simulation notes
 
-1. The ***fragmentation*** option for GZ has ***not been updated yet***, thus it cannot be currently used.
-2. The ***GridRun*** option for running massive simulations has ***not been updated yet***, thus it cannot be currently used. This should, however, not be a problem for simulations without fragmentation, unless the initial particle number is to big. Simulations on 1 degree grid cells (number of particles of order $\gtrsim 10^4$) have not shown any memory problems, even with added horizontal advection.
+1. The updated ***fragmentation*** option for GZ has ***not been substantialy tested so far (especially in plotting)***, thus use it with caution.
+2. The updated ***GridRun*** option for running massive simulations has ***not been substantialy tested so far***, thus use it with caution. However, for simulations without fragmentation, most computers should have no problem running the simualtions in normal mode. Simulations on 1 degree grid cells (number of particles of order $\gtrsim 10^4$) have not shown any memory problems, even with added horizontal advection.
 3. The ***DivideAndConquer*** scheme for massive simulations, has not been updated, and currently doesn't work. It will most likelly be ***deleted***, as it bears no benefit to the GridRun module.
 4. ***Horizontal Advection*** considerably increases simulation time.
-5. To ***reduce the output file size***, paramters -ev and -dto should be adjusted appropriately. The first specifies the epxort variables in the run() method in OceanDrift, while the latter speecifies the output time step.
+5. To ***reduce the output file size***, paramters -ev and -dto should be adjusted appropriately. The first specifies the epxort variables in the run() method in OceanDrift (for more info reffer to the main() function in [simulation.run](./simulation/run.py#main), while the latter speecifies the output time step.
 
 ## Plotting a simulation
 
@@ -339,7 +374,7 @@ animate_3D
 ```console
 ~/CarbonDrift$ python -m plotting.plot_run -h
 ```
-Alternatively one can check thespecific plotting methods and their parameters by going through the code in [model.plots](/model/plots.py)
+Alternatively one can check the specific plotting methods and their parameters by going through the code in [model.plots](/model/plots.py)
 
 
 **WORK IN PROGRESS**
