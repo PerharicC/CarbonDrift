@@ -185,6 +185,7 @@ class Plot:
         self.objects =  []
         self.decay_type = []
         self.initial_velocities = []
+        self.fragmentation = False
         for k in range(len(files)):
             obj = Open(files[k])
             setattr(self, "obj" + str(k + 1), obj)
@@ -195,6 +196,7 @@ class Plot:
                     param = json.load(f)
                     self.decay_type.append(param["decaytype"])
                     self.initial_velocities.append(param["initialvelocity"])
+                    self.fragmentation = not param["fragmentation"]
                 f.close()
         
         logger.debug("Adding attributes.")
@@ -1495,7 +1497,10 @@ class Plot:
                 logger.debug("Specified colormap doesn't exist, changing to jet.")
                 cmap = "jet"
 
-        k = 1 / mass[0, :]
+        if self.fragmentation:
+            k = 100
+        else:
+            k = 1 / mass[0, :]
         dt = (self.time[0][1]-self.time[0][0]).total_seconds()
         idx = np.where(np.invert(np.logical_or(np.isnan(mass[1, :]), np.isnan(z[1, :]))))[0][0]
         try:
@@ -1537,7 +1542,11 @@ class Plot:
             ax.set_zlabel("z")
             idx = np.invert(np.isnan(lon[i, :]))
             w = abs((z[i - 1, idx] - z[i, idx]) / dt)*24*3600
-            sc = ax.scatter(lon[i, idx], lat[i, idx], z[i, idx], s=mass[i, idx] * k[idx], c = w, cmap = cmap, vmin=0, vmax = w0)
+            if self.fragmentation:
+                q = k
+            else:
+                q = k[idx]
+            sc = ax.scatter(lon[i, idx], lat[i, idx], z[i, idx], s=mass[i, idx] * q, c = w, cmap = cmap, vmin=0, vmax = w0)
             cb.update_normal(sc)
             ax.set_title(self.time[0][i])
             ax.view_init(elev=10, azim=45, roll=0)
