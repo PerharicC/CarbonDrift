@@ -46,7 +46,11 @@ For very specific simulations the CarbonDrift modules can be run like any other 
 An example is shown in [examples/custom_simulation_run.py](examples/custom_simulation_run.py)
 
 ### Automized method
-CarbonDrift also allows running and later plotting simulations straight from a terminal. To do this, however, data needs to be seeded to a pickle file, by running for example the following script:
+CarbonDrift also allows running and later plotting simulations straight from a terminal. The diagram bellow higlights how this is achieved.
+
+![CarbonDrift Diagram](./examples/images/diagram_nogrid.png)
+
+First we must seed data to a pickle file, by running for example the following script:
 
 ```python
 from simulation.seeding import Seed
@@ -56,6 +60,7 @@ S = Seed("rectangle", bathymetrypath="./supplemetary_data/etopo2.nc",
         biomegridpath="./supplementary_data/biomegrid.2npy", poctype = <POC TYPE: "M" OR "Eg">,
         constantdensity=True)
 ```
+
 This calls the Seed class, which will save initial conditions used by [Luo et al, (2020)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2020GB006704) to a pickle outfile.
 
 Of course one can create their own pickle datafile, but the dataframe should contain the following keys: "lon", "lat", "mass", "z", while the values should be equal length numpy arrays or scalars (just as for normal opendrift simulations).
@@ -66,7 +71,7 @@ To run a CarbonDrift simulation from the terminal one can now simply run the fol
 ~/CarbonDrift$ python -m simulation.run -tmp <temperature netcdf filepath> -b <bathimetry netcdf filepath> -sdata <seed.pkl filepath> -s <starttime> -o <out netcdf filepath> -st <simulation steps>
 ```
 
-For further information on other arguments use header in terminal.
+For further information on other arguments use header in terminal or check the diagram above.
 
 **Note:** To avoid long terminal inputs, one can save parameters to a parameters.txt file of format
 
