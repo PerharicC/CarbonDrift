@@ -125,11 +125,19 @@ grid
 ```
 where sf is the ***split factor*** parameter, which splits the simulation into given number of simulations (i.e. in this case 3 sub-simulations).
 
+**Note:** If the user is running the simulation without the command line run method, (i.e. in a seperate python script), the fragmentatiuon function should be ***added*** to the new ***CarbonDrift initialization object*** as a ***callable***, which excepts ***three arguments***: elements, environment and m0. For example the above example would look like
+```python
+frag_func = lambda elements, environment, m0: np.logical_and(np.sqrt(elements.mass / m0) > np.random.random(len(m0)), elements.mass > 0.1)
+
+o = CarbonDrift(ffunction = frag_func)
+```  
+Note that this requires some knowledge of opendrift, as the correct variables have to be chosen from the correct recarrays. For example the temperature would be accessed with environment.sea_water_temperature.
+
 ### Important simulation notes
 
 1. The updated ***fragmentation*** option for GZ has ***not been substantialy tested so far (especially in plotting)***, thus use it with caution.
 2. The updated ***GridRun*** option for running massive simulations has ***not been substantialy tested so far***, thus use it with caution. However, for simulations without fragmentation, most computers should have no problem running the simualtions in normal mode. Simulations on 1 degree grid cells (number of particles of order $\gtrsim 10^4$) have not shown any memory problems, even with added horizontal advection.
-3. The ***DivideAndConquer*** scheme for massive simulations, has not been updated, and currently doesn't work. It will most likelly be ***deleted***, as it bears no benefit to the GridRun module.
+3. The ***DivideAndConquer*** scheme for massive simulations has been ***deprecated***, as it bears no benefit to the GridRun module.
 4. ***Horizontal Advection*** considerably increases simulation time.
 5. To ***reduce the output file size***, paramters -ev and -dto should be adjusted appropriately. The first specifies the epxort variables in the run() method in OceanDrift (for more info reffer to the main() function in [simulation.run](./simulation/run.py#main), while the latter speecifies the output time step.
 

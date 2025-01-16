@@ -114,9 +114,8 @@ def valid_fragmentation_function(s):
 
 def main():
     p = argparse.ArgumentParser(fromfile_prefix_chars='@')
-    p.add_argument("-sim", "--simulation_type", default="normal", choices=["normal", "grid", "DAC"],
-                   help = "Type of simulation, recommended normal unless you use fragmentation. \
-                    DAC has not been yet updated.")
+    p.add_argument("-sim", "--simulation_type", default="normal", choices=["normal", "grid"],
+                   help = "Type of simulation, recommended normal unless you use fragmentation.")
     p.add_argument("-tmp", "--temperature", help="NetCDF temperature file.", type = str, required=True)
     p.add_argument("-c", "--current", help="NetCDF current file.", type = str, required=False)
     p.add_argument("-o", "--outfile", type = str, default = "outfile.nc", help = "NetCDF outfile path.")

@@ -17,8 +17,6 @@ from opendrift.readers import reader_global_landmask
 import sys
 import traceback
 
-from model.areadecay.decaydistributions import Decay_Functions
-
 import psutil
 from numba import jit
 
@@ -72,12 +70,6 @@ class CarbonDrift(OceanDrift):
             Fragmentation function with 3 inputs, where the frist two will be Lagrangian3dArray elements and environment types,
             while the third should be initial mass array.
             E.g. f(elements, environment, m0):return elements.mass / m0 * environment.sea_water_temperature
-        max_ram: float
-            The ram threshold in GiB, which when exceeded splits the simulation into two subtasks 
-            (only possible using the DivideAndConquerCarbonDrift module) (default None)
-        max_num: int
-            The max number of particles a simulation can contain, before it splits into two subtasks
-            (only possible using the DivideAndConquerCarbonDrift module) (default None)
         decay_type: str
             Type of decay linear/exponential (default "linear")
         +All other arguments that OceanDrift can accept.
@@ -89,16 +81,11 @@ class CarbonDrift(OceanDrift):
         # self.r0 = kwargs.pop("r0")
         # self.T0 = kwargs.pop("sea_surface_temperature")
         self.frag_func = kwargs.pop("ffunction", None)
-        self.max_ram = kwargs.pop("max_ram", None)
-        self.max_num = kwargs.pop("max_num", None)
         self.decay_type = kwargs.pop("decay_type", "linear")
         self.vertical_velocity_type = kwargs.pop("vertical_velocity_type", "variable")
         
         super(CarbonDrift, self).__init__(*args, **kwargs)
 
-        #Initialize DivideAndConquer algorithm splitting attributes.
-        self.pause = False
-        self.resume = True
 
         #Allow fragmentation.
         self.disable_fragmentation_decay = False
@@ -139,16 +126,6 @@ class CarbonDrift(OceanDrift):
 
         if not self.disable_fragmentation_decay and (self.expected_steps_calculation - 1) * self.time_step + self.start_time != self.time:
             self.create_new_particles(*self.fragmentation())
-        
-        #For DivideAndConquer.
-        if self.max_ram is not None:
-            if self.ram_check():
-                self.pause = True
-        
-        #For DivideAndConquer.
-        if self.max_num is not None:
-            if len(self.elements.mass) > self.max_num:
-                self.pause = True
     
     def deactivate_fragmentation(self):
         self.disable_fragmentation_decay = True
@@ -608,9 +585,6 @@ class CarbonDrift(OceanDrift):
 
                 self.store_previous_variables()
 
-                if self.pause:
-                    break
-
                 self.calculate_missing_environment_variables()
 
                 if any(missing):
@@ -745,11 +719,3 @@ class CarbonDrift(OceanDrift):
             if hasattr(self, 'environment_profiles'):
                 del self.environment_profiles
             self.io_import_file(outfile)
-
-        if not self.pause:
-            self.resume = False
-    
-    def ram_check(self):
-        return psutil.Process().memory_info().rss / (10 ** 9) >= self.max_ram
-
-
