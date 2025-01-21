@@ -1582,7 +1582,7 @@ class Plot:
             if self.add:
                 logger.debug("Start calculating mass at given depth for other files.")
                 for i, obj in enumerate(self.objects[mnum*sim_num + 1:mnum*sim_num+sim_num]):
-                    flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad, self.seafloor_idx[i]) / area
+                    flux1 += self.zone_crossing_event(obj, self.lons, self.lats, self.depth, bad, self.seafloor_idx[mnum*sim_num + 1 + i]) / area
                 logger.debug("Finished calculating mass at given depth for other files.")
             flux = np.copy(flux1)
             flux[np.isnan(flux)] = 0
