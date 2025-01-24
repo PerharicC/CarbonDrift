@@ -1983,16 +1983,28 @@ class Plot:
             plt.show()
 
     def vertical_particle_distribution(self):
+        """Create an interactive slider vertical distribution of particle count or save it as an animation."""
+
         plt.close()
         fig = plt.figure(figsize = self.figsize)
         
-        mainplot = fig.add_axes([.15, .3, .8, .5])
-        sliderax = fig.add_axes([.15, .08, .75, .05])
+        if self.outfile is not None:
+            logger.warning(
+                "Outfile is given, the plot will be saved as an animation. If you want slider control, pelase remove the outfile argument."
+                )
+            mainplot = fig.add_subplot(111)
+        else:
+            logger.warning(
+                "Outfile is not given. If you want to save the plot as an animation, please add the outfile argument."
+                )
+            mainplot = fig.add_axes([.15, .3, .8, .5])
+            sliderax = fig.add_axes([.15, .08, .75, .05])
 
         maxdepth = np.min(self.obj1.get_property("depth")) if self.depth is None else self.depth
 
         z_dist = np.linspace(maxdepth, 0, self.bins)
 
+        logger.debug("Retrieving time information.")
         maxtime = 0
         time_steps = []
         for obj in self.objects:
@@ -2001,10 +2013,14 @@ class Plot:
             time_step = datetime.strptime(obj.data.time_step_output, "%H:%M:%S")
             time_steps.append(timedelta(hours = time_step.hour, minutes=time_step.minute, seconds=time_step.second).total_seconds() / 3600)
         time_steps = np.asarray(np.asarray(time_steps) // np.min(time_steps), dtype=np.int64)
-        tslider = Slider(sliderax, 'time', 0, maxtime-1,
-                         valinit = 0, valfmt='%0.0f', color = "black",
-                         valstep = 1)
         
+        if self.outfile is None:
+            logger.debug("Setting up slider.")
+            tslider = Slider(sliderax, 'time', 0, maxtime-1,
+                            valinit = 0, valfmt='%0.0f', color = "black",
+                            valstep = 1)
+        
+        logger.debug("Precalculating distribution.")
         particle_count = np.zeros((maxtime, len(self.objects), self.bins))
         sea_floor_particles = np.zeros((maxtime, self.bins))
         
@@ -2022,20 +2038,29 @@ class Plot:
                 particle_count[t*time_step:(t+1)*time_step, i, :] = hist[0]
                 sea_floor_particles = self.update_sea_floor_particle_count(sea_floor_particles, self.bins,z, active,
                                                                            status, hist[1], t, self.seafloor_idx[i], time_step)
-                # for j in range(self.bins):
-                #     if j == 0:
-                #         zj = z[t, active]<= hist[1][j]
-                #     else:
-                #         zj = np.logical_and(z[t, active]<= hist[1][j], z[t, active]> hist[1][j-1])
-                #     sea_floor_particles[t*time_step:, j] += len(np.where(status[t, active][zj] == self.seafloor_idx[i])[0])
         
         if not self.abs:
             totnum = np.sum(particle_count[0, :, :])
             particle_count /= totnum
             sea_floor_particles /= totnum
         
+        if self.outfile is not None:
+            mainplot.grid()
+            mainplot.barh(z_dist, sea_floor_particles[0, :], color = "black", height = maxdepth/self.bins, label = "seafloor")
+            for i in range(particle_count.shape[1]):
+                color = self.color[i] if self.color is not None else None
+                label = self.labels[i] if self.legend else None
+                mainplot.barh(z_dist, particle_count[0, i, :],
+                             left = sea_floor_particles[0, :] + np.sum(particle_count[0, :i, :], axis=0),
+                             height = maxdepth/self.bins, color = color, label = label)
+            if self.legend:mainplot.legend(loc = "lower right")
+            if self.xlim is not None:mainplot.set_xlim(self.xlim)
+            if self.xlabel is not None: mainplot.set_xlabel(self.xlabel)
+            if self.ylabel is not None: mainplot.set_ylabel(self.ylabel)
+            if self.title is not None: mainplot.set_title(self.title)
+        
         def update(val):
-            tindex = int(tslider.val)
+            tindex = int(tslider.val) if self.outfile is None else val
             mainplot.cla()
             mainplot.grid()
             mainplot.barh(z_dist, sea_floor_particles[tindex, :], color = "black", height = maxdepth/self.bins, label = "seafloor")
@@ -2046,16 +2071,25 @@ class Plot:
                              left = sea_floor_particles[tindex, :] + np.sum(particle_count[tindex, :i, :], axis=0),
                              height = maxdepth/self.bins, color = color, label = label)
             if self.legend:mainplot.legend(loc = "lower right")
-            fig.canvas.draw_idle()
+            if self.outfile is None: fig.canvas.draw_idle()
             if self.xlim is not None:mainplot.set_xlim(self.xlim)
             if self.xlabel is not None: mainplot.set_xlabel(self.xlabel)
             if self.ylabel is not None: mainplot.set_ylabel(self.ylabel)
             if self.title is not None: mainplot.set_title(self.title)
 
-        update(0)
-        tslider.on_changed(update)
-        plt.show()
+        if self.outfile is not None:
+            logger.debug("Initializing animation.")
+            anim=animation.FuncAnimation(fig, update, blit=False, frames = maxtime, interval=100)
+            logger.debug("Adding PillowWriter to animation.")
+            writer = animation.PillowWriter(fps=20)
+            logger.debug("Saving animation.")
+            anim.save(self.outfile, writer = writer)
+        else:
+            update(0)
+            tslider.on_changed(update)
+            plt.show()
     
+    #Fast computation of seafloor vertical particle distribution.
     @staticmethod
     @jit(nopython=True)
     def update_sea_floor_particle_count(sea_floor_particles, bins, z, active, status, dist, t, sf, time_step):
