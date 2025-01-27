@@ -54,11 +54,10 @@ First we must seed data to a pickle file, by running for example the following s
 
 ```python
 from simulation.seeding import Seed
-S = Seed("rectangle", bathymetrypath="./supplemetary_data/etopo2.nc",
+S = Seed(bathymetrypath="./supplemetary_data/etopo2.nc",
         outfile = <outfile.pkl path>, phylum = <phylum , e.g "chordata">,
         initialmassdata="./supplementary_data/Luo_M_Eg_biome_data.json",
-        biomegridpath="./supplementary_data/biomegrid.2npy", poctype = <POC TYPE: "M" OR "Eg">,
-        constantdensity=True)
+        biomegridpath="./supplementary_data/biomegrid.2npy", poctype = <POC TYPE: "M" OR "Eg">)
 ```
 
 This calls the Seed class, which will save initial conditions used by [Luo et al, (2020)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2020GB006704) to a pickle outfile.
