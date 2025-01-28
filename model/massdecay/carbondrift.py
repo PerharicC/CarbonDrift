@@ -1,10 +1,8 @@
 import numpy as np
 from numpy.random import random
-from opendrift.models.oceandrift import OceanDrift, Lagrangian3DArray
+from opendrift.models.oceandrift import OceanDrift
 from datetime import datetime, timedelta
-# import logging
-# logging.captureWarnings(True)
-# logger = logging.getLogger(__name__)
+from model.carbon import Carbon
 from model.logger import Logger
 
 log = Logger("CarbonDrift.model.massdecay.carbondrift")
@@ -12,22 +10,9 @@ logger = log.LOGGER
 
 import opendrift
 import geojson
-
-from opendrift.readers import reader_global_landmask
 import sys
 import traceback
-
-import psutil
 from numba import jit
-
-
-
-class Carbon(Lagrangian3DArray):
-
-    variables = Lagrangian3DArray.add_variables([
-    ('mass', {'dtype': np.float32,
-                      'units': 'g',
-                      'default': 1})])
 
 
 
