@@ -479,8 +479,7 @@ class Plot:
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
             cb.set_label(f"{self.cb_units}")
-        if self.title is not None:
-            ax.set_title(self.title, fontweight = self.fontweight)
+        self.axis_setup(ax)
 
         ax.add_feature(cartopy.feature.LAND, zorder=100, edgecolor='k', facecolor = "beige")
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
@@ -674,8 +673,7 @@ class Plot:
         cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
             cb.set_label(f"{self.cb_units}")
-        if self.title is not None:
-            ax.set_title(self.title, fontweight = self.fontweight)
+        self.axis_setup(ax)
 
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
@@ -840,10 +838,7 @@ class Plot:
         # ax.set_xticklabels([r"${}^\circ $".format(i) for i in xticks] , rotation = 30)
         # ax.set_yticks(yticks)
         # ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
-        if self.legend:
-            ax.legend()
-        if self.xlim is not None: ax.set_xlim(*self.xlim)
-        if self.ylim is not None: ax.set_ylim(*self.ylim)
+        self.axis_setup(ax)
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -891,7 +886,7 @@ class Plot:
         m = 0
         for i, j in self.loc:
             for k, obj in enumerate(self.objects):
-                lon, lat = self.obj.get_properties_from_list(["lon", "lat"])
+                lon, lat = obj.get_properties_from_list(["lon", "lat"])
                 lon_idx = np.where(lon[0, :] == i)
                 lat_idx = np.where(lat[0, :] == j)
                 idx = np.intersect1d(lon_idx, lat_idx)
@@ -963,29 +958,17 @@ class Plot:
                 if m ==0 and self.legend:
                     lines.append(line)
                     self.labels.append("Martin Curve")
-            
-            if self.xlabel is None:
-                self.ax[m].set_xlabel(self.prop1)
-            else:
-                self.ax[m].set_xlabel(f"{self.xlabel}")
-            if self.ylabel is None:
-                self.ax[m].set_ylabel(self.prop2)
-            else:
-                self.ax[m].set_ylabel(f"{self.ylabel}")
 
+            self.axis_setup(self.ax[m], False, True)
             if self.suptitle is not None:
-                self.ax[m].set_title(self.suptitle[m])
-            
-            if self.xlim is not None: self.ax[m].set_xlim(*self.xlim)
-            if self.ylim is not None: self.ax[m].set_ylim(*self.ylim)
+                self.ax[m].set_title(self.suptitle[m], fontweight = self.fontweight)
 
             # self.ax[m].tick_params(labelbottom=False,labeltop=True)
             self.ax[m].xaxis.set_ticks_position('top')
             self.ax[m].xaxis.set_label_position('top')
-            self.ax[m].grid()
             m+=1
         if self.title is not None:
-            self.fig.suptitle(self.title)
+            self.fig.suptitle(self.title, fontweight = self.fontweight)
         if self.legend: self.ax[0].legend(lines, [f"{label}" for label in self.labels])
         plt.tight_layout()
 
@@ -1256,9 +1239,9 @@ class Plot:
             if i > 0:
                 ax[i].yaxis.set_tick_params(labelleft=False)
             if i % 2 == 0:
-                ax[i].set_title(suptitle[0], fontsize=15)
+                ax[i].set_title(suptitle[0], fontsize=15, fontweight=self.fontweight)
             else:
-                ax[i].set_title(suptitle[1], fontsize=15)
+                ax[i].set_title(suptitle[1], fontsize=15, fontweight=self.fontweight)
             ax[i].tick_params(axis='x', labelrotation=90, labelsize = 15)
             
             fig.add_subplot(ax[i])
@@ -1378,8 +1361,7 @@ class Plot:
             cb = plt.colorbar(sm, ax = ax, orientation="horizontal", shrink = self.shrink)
         if self.cb_units is not None:
             cb.set_label(f"{self.cb_units}")
-        if self.title is not None:
-            ax.set_title(self.title, fontweight = self.fontweight)
+        self.axis_setup(ax)
 
         ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
@@ -1551,7 +1533,6 @@ class Plot:
         plt.grid()
         if self.title is not None:
             plt.title(self.title)
-        
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -1604,15 +1585,7 @@ class Plot:
             self.ax.hist(np.ma.mean(flux, axis = 0 if self.group == "lonmean" else 1), bins = self.bins, color = color, density=True)
         self.ax.axvline(np.ma.mean(flux[mask]), color = "black", lw = self.lw, linestyle = "dashed", label = f"povprečje; {round(np.ma.mean(flux[mask]), 2)}")
         self.ax.legend()
-        if self.xlabel is not None:
-            self.ax.set_xlabel(f"{self.xlabel}")
-        if self.ylabel is not None:
-            self.ax.set_ylabel(f"{self.ylabel}")
-
-        if self.title is not None:
-            self.ax.set_title(self.title)
-        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
-        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
+        self.axis_setup(self.ax)
 
         plt.tight_layout()
 
@@ -1664,16 +1637,7 @@ class Plot:
 
         ellipse.set_transform(transf + self.ax.transData)
         self.ax.add_patch(ellipse)
-        if self.xlabel is not None:
-            self.ax.set_xlabel(f"{self.xlabel}")
-        if self.ylabel is not None:
-            self.ax.set_ylabel(f"{self.ylabel}")
-        if self.title is not None:
-            self.ax.set_title(self.title)
-            
-        if self.xlim is not None: self.ax.set_xlim(*self.xlim)
-        if self.ylim is not None: self.ax.set_ylim(*self.ylim)
-        self.ax.grid()
+        self.axis_setup(self.ax, None, True)
         plt.tight_layout()
 
         if self.outfile is not None:
@@ -1944,7 +1908,6 @@ class Plot:
             sea_floor_particles /= totnum
         
         if self.outfile is not None:
-            mainplot.grid()
             mainplot.barh(z_dist, sea_floor_particles[0, :], color = "black", height = maxdepth/self.bins, label = "seafloor")
             for i in range(particle_count.shape[1]):
                 color = self.color[i] if self.color is not None else None
@@ -1952,16 +1915,11 @@ class Plot:
                 mainplot.barh(z_dist, particle_count[0, i, :],
                              left = sea_floor_particles[0, :] + np.sum(particle_count[0, :i, :], axis=0),
                              height = maxdepth/self.bins, color = color, label = label)
-            if self.legend:mainplot.legend(loc = "lower right")
-            if self.xlim is not None:mainplot.set_xlim(self.xlim)
-            if self.xlabel is not None: mainplot.set_xlabel(self.xlabel)
-            if self.ylabel is not None: mainplot.set_ylabel(self.ylabel)
-            if self.title is not None: mainplot.set_title(self.title)
+            self.axis_setup(mainplot, "lower right", True)
         
         def update(val):
             tindex = int(tslider.val) if self.outfile is None else val
             mainplot.cla()
-            mainplot.grid()
             mainplot.barh(z_dist, sea_floor_particles[tindex, :], color = "black", height = maxdepth/self.bins, label = "seafloor")
             for i in range(particle_count.shape[1]):
                 color = self.color[i] if self.color is not None else None
@@ -1969,12 +1927,8 @@ class Plot:
                 mainplot.barh(z_dist, particle_count[tindex, i, :],
                              left = sea_floor_particles[tindex, :] + np.sum(particle_count[tindex, :i, :], axis=0),
                              height = maxdepth/self.bins, color = color, label = label)
-            if self.legend:mainplot.legend(loc = "lower right")
             if self.outfile is None: fig.canvas.draw_idle()
-            if self.xlim is not None:mainplot.set_xlim(self.xlim)
-            if self.xlabel is not None: mainplot.set_xlabel(self.xlabel)
-            if self.ylabel is not None: mainplot.set_ylabel(self.ylabel)
-            if self.title is not None: mainplot.set_title(self.title)
+            self.axis_setup(mainplot, "lower right", True)
 
         if self.outfile is not None:
             logger.debug("Initializing animation.")
@@ -1999,3 +1953,13 @@ class Plot:
                 zj = np.logical_and(z[t, active]<= dist[j], z[t, active]> dist[j-1])
             sea_floor_particles[t*time_step:, j] += len(np.where(status[t, active][zj] == sf)[0])
         return sea_floor_particles
+    
+    def axis_setup(self, ax, legendloc = None, grid=False):
+        if legendloc!=False:
+            if self.legend:ax.legend(loc = legendloc)
+        if self.xlim is not None:ax.set_xlim(*self.xlim)
+        if self.ylim is not None: ax.set_ylim(*self.ylim)
+        if self.xlabel is not None: ax.set_xlabel(f"{self.xlabel}")
+        if self.ylabel is not None: ax.set_ylabel(f"{self.ylabel}")
+        if self.title is not None: ax.set_title(self.title, fontweight = self.fontweight)
+        if grid:ax.grid()
