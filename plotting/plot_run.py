@@ -92,7 +92,6 @@ def main():
                    help = "Depth at which calculation takes place. If >= 5000 (<=-5000), it is set to sea floor.")
     p.add_argument("-clip", type = configure_clipping, help = "Clip values - format Vmin:Vmax. Use m for minus sign.")
     p.add_argument("-sh", "--shrink", type = float, default=1, help = "Shrink colorbar value.")
-    p.add_argument("-lines", "--loclines", action="store_true")
     p.add_argument("-loc", "--locations", type = str,
                    help = "Specific plotting locations - format lon1:lat1,lon2:lat2...")
     p.add_argument("-p1", "--prop1", type = str, help="Property to plot on x axis.")

@@ -1,12 +1,11 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, Button, CheckButtons
+from matplotlib.widgets import Slider
 from matplotlib import animation
 from matplotlib import gridspec
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
-import matplotlib.ticker as mticker
 from matplotlib.lines import Line2D
 import cartopy
 from cartopy import config
@@ -95,7 +94,7 @@ class Plot:
                  fontsize = 17, title = None, depth = -200, add = False, suptitle = None,
                  diff = True, absolute = False, fontweight = "normal", martincurve = None,
                  outfile = None, shrink = 1, clip = None, locations = None, bins = None,
-                 loclines = None, prop1 = None, prop2 = None, colorbarlabel = None,
+                 prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
                  biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None,
@@ -272,11 +271,6 @@ class Plot:
         else:
             self.clip = True
             self.Vmin, self.Vmax = clip
-
-        # if loclines is None:
-        #     self.loclines = False
-        # else:
-        #     self.loclines = loclines
         
         self.areagridpath = areagridpath
         self.biomegridpath = biomegridpath
@@ -484,14 +478,6 @@ class Plot:
         ax.add_feature(cartopy.feature.LAND, zorder=100, edgecolor='k', facecolor = "beige")
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--')
-        # gl.xlocator = mticker.FixedLocator([-120, -60, 0, 60, 120])
-        # gl.ylocator = mticker.FixedLocator([-60, -30, 0, 30, 60])
-        # gl.xformatter = LONGITUDE_FORMATTER
-        # gl.yformatter = LATITUDE_FORMATTER
-        # ax.set_xticks([-120, -60, 0, 60, 120])
-        # ax.set_xticklabels([r"$-120^\circ$", r"$-60^\circ$", r"$0^\circ$", r"$60^\circ$", r"$120^\circ$"])
-        # ax.set_yticks([-60, -30, 0, 30, 60])
-        # ax.set_yticklabels([r"$-60^\circ$", r"$-30^\circ$", r"$0^\circ$", r"$30^\circ$", r"$60^\circ$"])
 
         plt.tight_layout()
 
@@ -600,8 +586,6 @@ class Plot:
     def clean_dataset(self, obj:Open):
         """Get indicies of trajectories which are on land / have any other problems."""
 
-        from global_land_mask import globe
-
         z, mass, T, lon, lat, status = obj.get_properties_from_list([
             "z", "mass", "sea_water_temperature", "lon", "lat", "status"
         ])
@@ -612,7 +596,7 @@ class Plot:
             drifter_trajectory = z[:, i]
             drifter_mass = mass[:, i]
 
-            if np.isnan(lat[0, i]):# or globe.is_land(lat[0, i], lon[0, i]):
+            if np.isnan(lat[0, i]):
                 bad_trajectories.append(i)
                 continue
 
@@ -620,9 +604,6 @@ class Plot:
             
             if (drifter_trajectory[trajectory_nans]>drifter_trajectory[0]).any() or np.any(drifter_mass[1:] >= drifter_mass[0]):
                 bad_trajectories.append(i)
-            
-            # elif np.any(status[:, i] == self.ice_idx): #Ice
-            #     bad_trajectories.append(i)
         return bad_trajectories
     
     def current_strength(self):
@@ -677,14 +658,6 @@ class Plot:
 
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
-        # gl.xlocator = mticker.FixedLocator([-180, -90, 0, 90, 180])
-        # gl.ylocator = mticker.FixedLocator([-90, -45, 0, 45, 90])
-        # gl.xformatter = LONGITUDE_FORMATTER
-        # gl.yformatter = LATITUDE_FORMATTER
-        # ax.set_xticks([-180, -90, 0, 90, 180])
-        # ax.set_xticklabels([r"$-180^\circ$", r"$-90^\circ$", r"$0^\circ$", r"$90^\circ$", r"$180^\circ$"])
-        # ax.set_yticks([-90, -45, 0, 45, 90])
-        # ax.set_yticklabels([r"$-90^\circ$", r"$-45^\circ$", r"$0^\circ$", r"$45^\circ$", r"$90^\circ$"])
 
         plt.tight_layout()
 
@@ -822,11 +795,6 @@ class Plot:
                 color = None
 
             ax.plot(lon[0, idx], lat[0, idx], markers[k%len(markers)], color = color, markersize = 10, label = self.labels[k] if self.legend else None, zorder = 100)
-            # if self.loclines:
-            #     ax.hlines(lat[0, idx], -180, lon[0, idx], linestyles="dashed", color = "black")
-            #     ax.vlines(lon[0, idx], -90, lat[0, idx], linestyle = "dashed", color = "black")
-            # xticks.append(lon[0, idx])
-            # yticks.append(lat[0, idx])
             k += 1
         
         ax.set_global()
@@ -834,10 +802,6 @@ class Plot:
         ax.coastlines(zorder = 2)
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--')
-        # ax.set_xticks(xticks)
-        # ax.set_xticklabels([r"${}^\circ $".format(i) for i in xticks] , rotation = 30)
-        # ax.set_yticks(yticks)
-        # ax.set_yticklabels(r"${}^\circ $".format(i) for i in yticks)
         self.axis_setup(ax)
         plt.tight_layout()
 
@@ -906,6 +870,17 @@ class Plot:
                     v = obj.get_property("y_sea_water_velocity")
                     x = np.sqrt(u ** 2 + v ** 2)
                     x = np.ma.filled(x, np.nan)
+                elif self.prop1 == "tau":
+                    T = obj.get_property("sea_water_temperature")
+                    T = np.ma.filled(T, np.nan)
+                    T[T< 0]=0
+                    decay = self.decay_type[k]
+                    if decay == "linear":
+                        decayrate = 0.064 * T + 0.02
+                    else:
+                        decayrate = 0.140 * np.exp(0.145 * T)
+                    x = 1 / decayrate
+                    x *= 24
                 elif self.prop1 != "time":
                     x = obj.get_property(self.prop1)
                     x = np.ma.filled(x, np.nan)
@@ -917,6 +892,17 @@ class Plot:
                     v = obj.get_property("y_sea_water_velocity")
                     y = np.sqrt(u ** 2 + v ** 2)
                     Y = np.ma.filled(x, np.nan)
+                elif self.prop2 == "tau":
+                    T = obj.get_property("sea_water_temperature")
+                    T = np.ma.filled(T, np.nan)
+                    T[T< 0]=0
+                    decay = self.decay_type[k]
+                    if decay == "linear":
+                        decayrate = 0.064 * T + 0.02
+                    else:
+                        decayrate = 0.140 * np.exp(0.145 * T)
+                    y = 1 / decayrate
+                    Y *= 24
                 elif self.prop2 != "time":
                     y = obj.get_property(self.prop2)
                     y = np.ma.filled(y, np.nan)
@@ -978,99 +964,6 @@ class Plot:
         else:
             plt.show()
 
-    def z_tau(self):
-        """Plot deph to inverse decay rate 'tau' dependency."""
-        plt.close()
-
-        if self.loc is None:
-            raise AttributeError("Locations are not specified.")
-        if len(self.decay_type) == 0:
-            raise FileExistsError("No .json parameter file found to read decaytype.")
-        self.fig, self.ax = plt.subplots(1, len(self.loc), figsize = self.figsize)
-
-        logger.debug("Searching for bad trajectories.")
-        bad = []
-        for i in range(len(self.objects)):
-            bad.append(self.clean_dataset(self.objects[i]))
-        logger.debug("Reading required simulation properties.")
-                
-        lines = []
-
-        m = 0
-        for i, j in self.loc:
-            for k, obj in enumerate(self.objects):
-                lon = obj.get_property("lon")
-                lon = np.ma.filled(lon, np.nan)
-
-                lat = obj.get_property("lat")
-                lat = np.ma.filled(lat, np.nan)
-                lon_idx = np.where(lon[0, :] == i)
-                lat_idx = np.where(lat[0, :] == j)
-                idx = np.intersect1d(lon_idx, lat_idx)
-
-                if len(idx) == 0:
-                    logger.info("Could not find drifter with starting position ({}, {}).".format(i, j))
-                    continue
-                else:
-                    idx = idx[0]
-            
-                if idx in bad[k]:
-                    logger.info("({}, {}) is a bad trajectory and will not be included.".format(i, j))
-                    continue
-                
-                T = obj.get_property("sea_water_temperature")
-                T = np.ma.filled(T, np.nan)
-                T = T[:, idx]
-                T[T< 0]=0
-                decay = self.decay_type[k]
-                if decay == "linear":
-                    decayrate = 0.064 * T + 0.02
-                else:
-                    decayrate = 0.140 * np.exp(0.145 * T)
-                tau = 1 / decayrate
-                tau *= 24
-                y = obj.get_property("z")
-                y = np.ma.filled(y, np.nan)
-                y = y[:, idx]
-                
-                if self.color is not None:
-                    try:
-                        color = self.color[k % len(self.color)]
-                    except IndexError:
-                        logger.warning(f"SettinG color to None for object number {k}", exc_info=IndexError)
-                        color = None
-                else:
-                    color = None
-                linestyle = self.linestyle[k % len(self.linestyle)]
-                line, = self.ax[m].plot(tau, y, lw = self.lw, linestyle = linestyle, color = color)
-                lines.append(line)
-            
-            if self.xlabel is not None:
-                self.ax[m].set_xlabel(f"{self.xlabel}")
-            if self.ylabel is not None:
-                self.ax[m].set_ylabel(f"{self.ylabel}")
-            if self.suptitle is not None:
-                self.ax[m].set_title(self.suptitle[m])
-            
-            if self.xlim is not None: self.ax[m].set_xlim(*self.xlim)
-            if self.ylim is not None: self.ax[m].set_ylim(*self.ylim)
-
-            # self.ax[m].tick_params(labelbottom=False,labeltop=True)
-            self.ax[m].xaxis.set_ticks_position('top')
-            self.ax[m].xaxis.set_label_position('top')
-            self.ax[m].grid()
-            m+=1
-        if self.title is not None:
-            self.fig.suptitle(self.title)
-        if self.legend: self.ax[0].legend(lines, [f"{label}" for label in self.labels])
-        plt.tight_layout()
-
-        if self.outfile is not None:
-            logger.debug("Saving output file.")
-            plt.savefig(self.outfile, dpi = self.dpi, bbox_inches = "tight")
-        else:
-            plt.show()
-
     def get_mass_sum_at_depth(self):
 
         '''Return sum of mass over all grid points at given depth.'''
@@ -1110,10 +1003,6 @@ class Plot:
                 m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
             
             else:
-                #Sea_floor.
-                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
-                # if len(bounce) > 0:
-                #     raise ValueError("Depth decreases.")
                 
                 s = status[:, i]
                 sea_floor = np.where(s == self.seafloor_idx[0])[0]
@@ -1296,7 +1185,6 @@ class Plot:
         for i in range(len(self.objects)):
             bad.append(self.clean_dataset(self.objects[i]))
             break
-        # bad = [i for j in bad for i in j]
 
         logger.debug("Start calculating mass at given depth.")
         flux1 = self.zone_crossing_event(self.obj1, self.lons, self.lats, h, bad, self.seafloor_idx[0]) / area
@@ -1366,14 +1254,6 @@ class Plot:
         ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='k', facecolor = "beige")
         gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
-        # gl.xlocator = mticker.FixedLocator([-120, -60, 0, 60, 120])
-        # gl.ylocator = mticker.FixedLocator([-60, -30, 0, 30, 60])
-        # gl.xformatter = LONGITUDE_FORMATTER
-        # gl.yformatter = LATITUDE_FORMATTER
-        # ax.set_xticks([-120, -60, 0, 60, 120])
-        # ax.set_xticklabels([r"$-120^\circ$", r"$-60^\circ$", r"$0^\circ$", r"$60^\circ$", r"$120^\circ$"])
-        # ax.set_yticks([-60, -30, 0, 30, 60])
-        # ax.set_yticklabels([r"$-60^\circ$", r"$-30^\circ$", r"$0^\circ$", r"$30^\circ$", r"$60^\circ$"])
 
         plt.tight_layout()
 
@@ -1682,11 +1562,6 @@ class Plot:
                 m, depth_idx = self.interpolate(drifter_trajectory[trajectory_nans], drifter_mass[trajectory_nans], depth)
             
             else:
-                #Sea_floor.
-                # bounce = np.where(drifter_trajectory[:-1] < np.roll(drifter_trajectory, -1)[:-1])[0]
-                # if len(bounce) > 0:
-                #     raise ValueError("Depth decreases.")
-                
                 s = status[:, i]
                 sea_floor = np.where(s == self.seafloor_idx)[0]
                 if len(sea_floor) >0:
@@ -1789,9 +1664,6 @@ class Plot:
         cb2 = plt.colorbar(sc2, shrink = self.shrink, orientation = "horizontal")
         cb2.set_label(r"$z\,\mathrm{[m]}$")
 
-        cbticks = cb.get_ticks()
-        cb2ticks = cb2.get_ticks()
-
         def update(i):
             ax.cla()
             ax2.cla()
@@ -1829,8 +1701,6 @@ class Plot:
                           linewidth=2, color='k', alpha=0.8, linestyle='--', zorder = 100)
             cb.update_normal(sc)
             cb2.update_normal(sc2)
-            # cb.set_ticks(cbticks)
-            # cb2.set_ticks(cb2ticks)
             fig.suptitle(self.time[0][i])
             ax.view_init(elev=8, azim=45, roll=0)
 
