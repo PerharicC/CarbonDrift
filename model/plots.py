@@ -47,6 +47,19 @@ class Open:
         units = time.units
         return num2date(time[:], units)
 
+    def get_properties_from_list(self, properties):
+        p = []
+        for property in properties:
+            if property in ["status", "origin_marker"]:
+                prop = self.get_property(property)
+                prop = np.ma.MaskedArray(prop.data, prop.mask, float)
+                prop = np.ma.filled(prop, np.nan)
+            else:
+                prop = self.get_property(property)
+                prop = np.ma.filled(prop, np.nan)
+            p.append(prop)
+        return p
+
 def get_status_info(data):
     """Assign index values to status info."""
     status = data.variables["status"]
@@ -489,12 +502,9 @@ class Plot:
         else:
             plt.show()
 
-    def find_grid_cells_with_no_data(self, obj):
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)[0, :]
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)[0, :]
+    def find_grid_cells_with_no_data(self, obj:Open):
+        lon, lat = obj.get_properties_from_list(["lon", "lat"])
+        lon, lat = lon[0, :], lat[0, :]
         X = np.zeros((len(self.lons), len(self.lats)))
         for i in range(len(self.lats)):
             for j in range(len(self.lons)):
@@ -519,20 +529,9 @@ class Plot:
         """Calculate particle properties when crossing a certain depth."""
 
         logger.debug("Reading required simulation properties.")
-        z = obj.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = obj.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
+        z, mass, lon, lat, status = obj.get_properties_from_list([
+                                        "z", "mass", "lon", "lat", "status"
+                                        ])
 
         return self.mass_sum(lons, lats, depth, z, mass, lon, lat, status, seafloor_idx, bad)
 
@@ -599,29 +598,14 @@ class Plot:
         dt = dt.total_seconds() / 3600
         return np.arange(0, n * dt, dt)
 
-    def clean_dataset(self, obj):
+    def clean_dataset(self, obj:Open):
         """Get indicies of trajectories which are on land / have any other problems."""
 
         from global_land_mask import globe
 
-        z = obj.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = obj.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        T = obj.get_property("sea_water_temperature")
-        T = np.ma.filled(T, np.nan)
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
+        z, mass, T, lon, lat, status = obj.get_properties_from_list([
+            "z", "mass", "sea_water_temperature", "lon", "lat", "status"
+        ])
 
         bad_trajectories = []
 
@@ -732,16 +716,10 @@ class Plot:
 
         logger.debug("Reading required simulation properties.")
 
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
+        lon, lat, z, status = obj.get_properties_from_list([
+            "lon", "lat", "z", "status"
+        ])
 
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-        z = obj.get_property("z")
-        z = np.ma.filled(z, np.nan)
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
         distance_traveled = np.zeros((len(lons), len(lats)))
         is_in_cell = np.ones((len(lons), len(lats)))
         is_stranded = np.zeros((len(lons), len(lats)))
@@ -816,14 +794,8 @@ class Plot:
         bad = self.clean_dataset(self.obj1)
         logger.debug("Reading required simulation properties.")
 
-        lon = self.obj1.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
+        lon, lat = self.obj1.get_properties_from_list(["lon", "lat"])
 
-        lat = self.obj1.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        # xticks = []
-        # yticks = []
         k = 0
         markers = "s^vox"
 
@@ -919,11 +891,7 @@ class Plot:
         m = 0
         for i, j in self.loc:
             for k, obj in enumerate(self.objects):
-                lon = obj.get_property("lon")
-                lon = np.ma.filled(lon, np.nan)
-
-                lat = obj.get_property("lat")
-                lat = np.ma.filled(lat, np.nan)
+                lon, lat = self.obj.get_properties_from_list(["lon", "lat"])
                 lon_idx = np.where(lon[0, :] == i)
                 lat_idx = np.where(lat[0, :] == j)
                 idx = np.intersect1d(lon_idx, lat_idx)
@@ -1136,25 +1104,9 @@ class Plot:
         logger.debug("Reading required simulation properties.")
         if obj is None:
             obj = self.obj1
-        z = obj.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = obj.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        biome = obj.get_property("origin_marker")
-        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
-        biome = np.ma.filled(biome, np.nan)
-
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
+        z, mass, lon, lat, biome, status = obj.get_properties_from_list([
+            "z", "mass", "lon", "lat", "origin_marker", "status"
+        ])
 
         logger.debug("Start summing masses.")
 
@@ -1202,25 +1154,9 @@ class Plot:
         logger.debug("Reading required simulation properties.")
         if obj is None:
             obj = self.obj1
-        z = obj.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = obj.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        biome = obj.get_property("origin_marker")
-        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
-        biome = np.ma.filled(biome, np.nan)
-
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
+        z, mass, lon, lat, biome, status = obj.get_properties_from_list([
+            "z", "mass", "lon", "lat", "origin_marker", "status"
+        ])
 
         area = self.load_area()
 
@@ -1474,17 +1410,9 @@ class Plot:
         ax = fig.add_subplot(projection='3d')
         
         logger.debug("Reading required simulation properties.")
-        lon = self.obj1.get_property('lon')
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = self.obj1.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        z = self.obj1.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = self.obj1.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
+        lon, lat, z, mass = self.obj1.get_properties_from_list([
+            "lon", "lat", "z", "mass"
+        ])
         
         logger.debug("Initialize colormap.")
         if self.cmap is None:
@@ -1766,25 +1694,9 @@ class Plot:
         lonmax = max([i[0] for i in loc])
         latmin = min([i[1] for i in loc])
         latmax = max([i[1] for i in loc])
-        z = obj.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = obj.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        lon = obj.get_property("lon")
-        lon = np.ma.filled(lon, np.nan)
-
-        lat = obj.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        biome = obj.get_property("origin_marker")
-        biome = np.ma.MaskedArray(biome.data, biome.mask, float)
-        biome = np.ma.filled(biome, np.nan)
-
-        status = obj.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
+        z, mass, lon, lat, biome, status = obj.get_properties_from_list([
+            "z", "mass", "lon", "lat", "origin_marker", "status"
+        ])
 
         logger.debug("Start summing masses.")
 
@@ -1839,21 +1751,10 @@ class Plot:
         ax2 = fig.add_subplot(122, projection = ccrs.PlateCarree())
         
         logger.debug("Reading required simulation properties.")
-        lon = self.obj1.get_property('lon')
-        lon = np.ma.filled(lon, np.nan)
+        z, mass, lon, lat, status = self.obj1.get_properties_from_list([
+            "z", "mass", "lon", "lat", "status"
+        ])
 
-        lat = self.obj1.get_property("lat")
-        lat = np.ma.filled(lat, np.nan)
-
-        z = self.obj1.get_property('z')
-        z = np.ma.filled(z, np.nan)
-
-        mass = self.obj1.get_property("mass")
-        mass = np.ma.filled(mass, np.nan)
-
-        status = self.obj1.get_property("status")
-        status = np.ma.MaskedArray(status.data, status.mask, float)
-        status = np.ma.filled(status, np.nan)
         seafloor_tracker = {"lon":[], "lat":[], "z":[], "m":[]}
         u = self.obj1.get_property("x_sea_water_velocity")
         v = self.obj1.get_property("y_sea_water_velocity")
@@ -2025,11 +1926,9 @@ class Plot:
         sea_floor_particles = np.zeros((maxtime, self.bins))
         
         for i, obj in enumerate(self.objects):
-            z = obj.get_property('z')
-            z = np.ma.filled(z, np.nan)
-            status = obj.get_property("status")
-            status = np.ma.MaskedArray(status.data, status.mask, float)
-            status = np.ma.filled(status, np.nan)
+            z, status = obj.get_properties_from_list([
+                "z", "status"
+            ])
             time_step = time_steps[i]
             for t in range(obj.data["time"].shape[0]):
                 active = np.invert(np.isnan(z[t, :]))
