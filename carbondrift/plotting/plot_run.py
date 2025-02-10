@@ -1,8 +1,8 @@
 import numpy as np
 import argparse
 
-from model.logger import Logger
-from model.plots import Plot
+from carbondrift.models.logger import Logger
+from carbondrift.models.plots import Plot
 
 def valid_figsize(s:str):
     if ":" not in s:

@@ -2,8 +2,8 @@ import numpy as np
 from numpy.random import random
 from opendrift.models.oceandrift import OceanDrift
 from datetime import datetime, timedelta
-from model.carbon import Carbon
-from model.logger import Logger
+from carbondrift.models.carbon import Carbon
+from carbondrift.models.logger import Logger
 
 log = Logger("CarbonDrift.model.massdecay.carbondrift")
 logger = log.LOGGER

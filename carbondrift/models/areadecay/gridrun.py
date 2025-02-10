@@ -1,6 +1,6 @@
 import os
 
-from model.areadecay.carbondrift import *
+from carbondrift.models.areadecay.carbondrift import *
 import numpy as np
 from datetime import datetime, timedelta
 from copy import copy

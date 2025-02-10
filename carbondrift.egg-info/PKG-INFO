@@ -1,4 +1,10 @@
 Metadata-Version: 2.1
 Name: carbondrift
-Version: 0.0.0
+Version: 1.0.0
+Home-page: https://github.com/PerharicC/CarbonDrift
+Author: Crtomir E. Perharic Bailey
+Author-email: crtomir11@hotmail.com
 License-File: LICENSE
+Requires-Dist: haversine>=2.8.1
+Requires-Dist: numba>0.60.0
+Requires-Dist: numba-progress>1.1.0

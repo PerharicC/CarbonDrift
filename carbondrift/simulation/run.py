@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 import argparse
 import numpy as np #This must be here for proper evaluation of the fragmentation function!!!
-from simulation.prepare_run import PrepareSimulation
+from carbondrift.simulation.prepare_run import PrepareSimulation
 
-from model.logger import Logger
+from carbondrift.models.logger import Logger
 
 import json
 

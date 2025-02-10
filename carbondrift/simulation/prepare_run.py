@@ -1,15 +1,15 @@
 import numpy as np
 from copy import copy
-import model.massdecay.gridrun as mcdgrid
-import model.areadecay.gridrun as acdgrid
-import model.massdecay.carbondrift as mcd
-import model.areadecay.carbondrift as acd
-from simulation.param_classifier import Parameters
+import carbondrift.models.massdecay.gridrun as mcdgrid
+import carbondrift.models.areadecay.gridrun as acdgrid
+import carbondrift.models.massdecay.carbondrift as mcd
+import carbondrift.models.areadecay.carbondrift as acd
+from carbondrift.simulation.param_classifier import Parameters
 from opendrift.readers import reader_global_landmask
 from opendrift.readers import reader_netCDF_CF_generic
-from simulation.seeding import *
+from carbondrift.simulation.seeding import *
 
-from model.logger import Logger
+from carbondrift.models.logger import Logger
 
 log = Logger("CarbonDrift.simulation.prepare_run")
 logger = log.LOGGER

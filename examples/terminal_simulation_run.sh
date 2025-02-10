@@ -1,3 +1,3 @@
 #!/bin/bash
 cd ..
-python -m simulation.run @./examples/sim_params.txt
+run_simulation @./examples/sim_params.txt

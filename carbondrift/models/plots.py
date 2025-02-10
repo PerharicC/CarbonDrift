@@ -12,8 +12,8 @@ from cartopy import config
 import cartopy.crs as ccrs
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
-from model.massdecay.carbondrift import *
-from model.logger import Logger
+from carbondrift.models.massdecay.carbondrift import *
+from carbondrift.models.logger import Logger
 
 log = Logger("CarbonDrift.model.plots")
 logger = log.LOGGER
