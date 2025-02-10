@@ -1,12 +1,10 @@
 import numpy as np
-import sys
 from opendrift.readers import reader_netCDF_CF_generic
 from opendrift.readers import reader_global_landmask
 from datetime import datetime, timedelta
 from netCDF4 import Dataset
-sys.path.append("/home/peharicc/CarbonDrift")
 
-from model.areadecay import carbondrift
+from carbondrift.models.areadecay import carbondrift
 
 def run(outfile):
     #Import readers
