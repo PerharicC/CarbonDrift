@@ -1,3 +1,5 @@
+# THIS README VERSION IS OUTDATED, REFER TO THE PROPER DOCS
+
 # CarbonDrift
 Lagrangian 3d tracking of Gelatinous Zooplankton particles.
 

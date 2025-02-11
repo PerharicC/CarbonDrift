@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API References</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+    <div class = "row">
+        <button class="btn btn-primary col-12" id="btn-collapse-navbar" type="button" data-bs-toggle ="collapse" data-bs-target="#navbar-container" aria-expanded="false" aria-controls="navbar-container">
+            <img src="./assets/svgs/list.svg" />
+        </button>
+        <div class="collapse navbar-collapse col-12" id="navbar-container"></div>
+        <div class="navbar col-2"></div>
+        
+    <div class = "content">
+        <div class="col-12 col-md-9 offset-md-3" id = "references">
+            <h1>API Reference</h1>
+            <hr>
+
+            <div class="api-code-container">
+                <div><h2>simulation.run</h2></div>
+                <div>
+                    <button onclick="location.href='apiplotrun.html'" class="button-next" form>Previous</button>
+                    <button onclick="location.href='apipreparerun.html'" class="button-next">Next</button>
+                </div>
+            </div>
+
+            <h3>Functions</h3>
+            <ul class="expandable">
+                <li><span class="code-method">valid_date</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def valid_date(s):
+                                try:
+                                    return datetime.strptime(s, "%Y-%m-%d-%H")
+                                except ValueError:
+                                    raise argparse.ArgumentTypeError(f"not a valid date: {s!r}")
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">valid_time_step</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def valid_time_step(s):
+                                try:
+                                    t = datetime.strptime(s,"%H:%M:%S")
+                                    return timedelta(hours = t.hour, minutes=t.minute, seconds = t.second)
+                                except ValueError:
+                                    raise argparse.ArgumentTypeError(f"not a valid time format: {s!r}")
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">save_params</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def save_params(path, params):
+                                import time
+                                from copy import copy
+                                p = copy(params)
+                                p["TIME OF SIMULATION RUN"] = time.asctime()
+                                new_path = path.split(".")[0]+".json"
+                                with open(new_path, "w") as file:
+                                    json.dump(p, file, indent=4, default=str)
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">valid_export_variables</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def valid_export_variables(s):
+                                valid_vars = ["trajectory", "time", "status", "moving", "age_seconds", "origin_marker",
+                                              "lon", "lat", "z", "wind_drift_factor", "current_drift_factor",
+                                              "terminal_velocity", "mass", "x_sea_water_velocity", "y_sea_water_velocity",
+                                              "land_binary_mask", "sea_water_temperature", "depth"]
+                                
+                                try:
+                                    level = int(s)
+                                    if level == 0:
+                                        return valid_vars
+                                    elif level == 1:
+                                        return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass",
+                                                "x_sea_water_velocity", "y_sea_water_velocity", "sea_water_temperature", "depth"]
+                                    elif level == 2:
+                                        return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass", "sea_water_temperature", "depth"]
+                                    elif level >= 3:
+                                        return ["trajectory", "time", "status", "origin_marker", "lon", "lat", "z", "mass", "sea_water_temperature"]
+                                except ValueError:
+                                    pass
+                            
+                                try:
+                                    variables = s.split(",")
+                                except Exception:
+                                    raise argparse.ArgumentTypeError(f"not a valid export variables format: {s!r}")
+                                
+                                for  var in variables:
+                                    if var not in valid_vars:
+                                        raise argparse.ArgumentError(f"Export variable {var} is not a valid CarbonDrift variable.")
+                                return variables
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">prepare_fragmentation</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def prepare_fragmentation(function_code):
+                                def get_variable_from_code(s):
+                                    var = ""
+                                    for k in s:
+                                        if k == ";":
+                                            break
+                                        var+=k
+                                    return var
+                                
+                                modified_code = ""
+                                dictionary_of_variables = {
+                                    "T":"environment.sea_water_temperature",
+                                    "m": "elements.mass",
+                                    "u": "environment.x_sea_water_velocity",
+                                    "v": "environment.y_sea_water_velocity",
+                                    "uh": "np.sqrt(environment.x_sea_water_velocity**2 + environment.y_sea_water_velocity ** 2)",
+                                    "z": "elements.z",
+                                    "m0": "m0"
+                                    }
+                                variable_keys = dictionary_of_variables.keys()
+                                found = False
+                            
+                                i = 0
+                                while i < len(function_code):
+                                    s = function_code[i]
+                                    if s != ";":
+                                        modified_code += s
+                                        i+=1
+                                        continue
+                                    var = get_variable_from_code(function_code[i+1:])
+                                    
+                                    for key in variable_keys:
+                                        if key == var:
+                                            found = True
+                                            break
+                                    if not found:
+                                        raise NameError(f"Variable {var} not in variable list {variable_keys}.")
+                                    
+                                    modified_code += dictionary_of_variables[key]
+                                    found = False
+                                    i+= (2 + len(var))
+                                return lambda elements, environment, m0: eval(modified_code)
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">valid_fragmentation_function</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def valid_fragmentation_function(s):
+                                try:
+                                    return prepare_fragmentation(s)
+                                except Exception as e:
+                                    print(f"When trying to set-up the fragmentation function, the following error was raised: {type(e).__name__}")
+                                    print(f"Error message: {str(e)}")
+                                    raise
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">main</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def main():
+                                p = argparse.ArgumentParser(fromfile_prefix_chars='@')
+                                p.add_argument("-sim", "--simulation_type", default="normal", choices=["normal", "grid"],
+                                               help = "Type of simulation, recommended normal unless you use fragmentation.")
+                                p.add_argument("-tmp", "--temperature", help="NetCDF temperature file.", type = str, required=True)
+                                p.add_argument("-c", "--current", help="NetCDF current file.", type = str, required=False)
+                                p.add_argument("-o", "--outfile", type = str, default = "outfile.nc", help = "NetCDF outfile path.")
+                                p.add_argument("-b", "--bathymetry", type = str, help = "NetCDF depth file.", required=True)
+                                p.add_argument("-buff", "--readerbuffer", type = int, default=100, help ="OceanDrift reader vertical buffer size.\
+                                               Only change if it is to small.")
+                                p.add_argument("-s", "--starttime", type = valid_date, required  = False,
+                                               help = "Start time of simulation - format YYYY-MM-DD-h")
+                                p.add_argument("-w0", "--initialvelocity", default = -0.01, type = float,
+                                               help = "Initial velocity in m/s, positive up. Deafult is -0.01 m/s.")
+                                p.add_argument("-ffunc", "--ffunction", required = False, type=valid_fragmentation_function,
+                                               help = "Fragmentation function, variables must be enclosed in ;; - format np.sqrt(;T;) / ;u; ** 2>np.random(len(;T;))")
+                                p.add_argument("-f", "--fragmentation", action="store_false", help = "Set if fragmentation should be allowed.")
+                                p.add_argument("-a", "--advection", action="store_false", help = "Set if horizontal advection should be allowed.")
+                                p.add_argument("-st", "--steps", default=200, type = int, help = "Simulation steps.")
+                                p.add_argument("-dt", "--timestep",type = valid_time_step, default=timedelta(minutes = 30),
+                                               help = "Time step of simulation - format H:M:S" )
+                                p.add_argument("-dto", "--timestepoutput",type = valid_time_step, default=timedelta(minutes = 30),
+                                               help = "Output time step of simulation - format H:M:S" )
+                                p.add_argument("-d", "--decaytype", type = str, default="linear", choices=["linear", "exp"])
+                                p.add_argument("-log", "--loglevel", default = 0, type = int)
+                                p.add_argument("-oceanonly", action="store_true")
+                                p.add_argument("-sdata", "--seeddata", type = str, help = "Path to initial seed data.")
+                                p.add_argument("-mdtype", "--microbialdecaytype", type = str, default="mass", choices = ["mass", "area"])
+                                p.add_argument("-wtype", "--vertical_velocity_type", type = str, choices = ["constant", "variable"], default = "variable")
+                                p.add_argument("-ev", "--export_variables", type = valid_export_variables, default=valid_export_variables("0"),
+                                help = "Export variables. Either separate variables with , or specify export level with number (0 for all variables (default)).")
+                                p.add_argument("-sf", "--splitfactor", type = int, default=1,
+                                               help="Split simulation to n subsimulations using grid simulation_type.")
+                                args = p.parse_args()
+                                run_simulation(**vars(args))
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+
+                <li><span class="code-method">run_simulation</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def run_simulation(**kwargs):
+                                log = Logger("CarbonDrift.simulation.run")
+                                logger = log.LOGGER
+                            
+                                logger.info("Saving parameters.")
+                                save_params(kwargs["outfile"], kwargs)
+                            
+                                logger.info("Preparing Simulation.")
+                                simulation = PrepareSimulation(**kwargs)
+                                logger.info("Simulation is ready.")
+                                o = simulation.obj
+                                logger.info("Starting simulation.")
+                                o.run(**simulation.p.simulation_run)
+                                logger.info("Simulation is finished.")
+                            
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+                
+            </ul>
+        </div>
+        <div class="footer col-12 col-md-9 offset-md-3"></div>
+    </div>
+    </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="./index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.17.1/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

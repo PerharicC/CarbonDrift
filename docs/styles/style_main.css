@@ -1,0 +1,298 @@
+.bold {
+    font-weight: bold;
+};
+
+#CarbonDrift-title-navbar{
+    font-weight: bold;
+    color:#96B6C5;
+}
+
+body{
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+h1{
+    color: #96B6C5;
+    font-weight: bold;
+    font-size: 5rem;
+}
+
+h2{
+    color: #ADC4CE;
+    font-weight: bold;
+    font-size: 2rem;
+}
+
+h3 {
+    color: #ADC4CE;
+    font-size: 1.8rem;
+    margin-top: 2rem;
+}
+
+h4 {
+    color: #ADC4CE;
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+a {
+    text-decoration: none;
+}
+
+@media screen and (max-width:650px){
+    h1 {
+        font-size: 3.2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.2rem;
+    }
+}
+
+h1,h2,h3,h4 {
+    font-family: "Georgia", serif;
+}
+
+header{
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+}
+
+body{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container > .row {
+    justify-content: space-between;
+    align-items: center;
+}
+
+ul {
+    display: flex;
+    justify-content: center;
+}
+
+#search {
+    justify-content: flex-end;
+}
+
+@media screen and (max-width:767px) {
+    
+    #search {
+        margin-top: 2%;
+        justify-content: center;
+    }
+}
+
+
+.title {
+    background-color: white;
+    margin: 2rem;
+}
+
+#CD-summary {
+    width: 100%;
+    background-color: #F1F0E8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+#CD-summary > p {
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+@media screen and (max-width:650px) {
+
+    .title {
+        margin-top: 0;
+    }
+    
+}
+
+#main-carousel{
+    background-color:#96B6C5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    flex:1;
+    overflow: hidden;
+    min-height: 20rem;
+}
+
+.carousel-wraper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 200%;
+}
+
+.container{
+    width: 100%;
+}
+
+
+.card {
+    display: flex;
+    flex-direction: column;
+    background-color: #EEE0C9;
+    align-items: center;
+    justify-content: center;
+    padding: 2% 0%;
+    min-width: fit-content;
+    max-width:100%
+}
+
+.card-image {
+    display: flex;
+    justify-content: center;
+}
+
+.card-image > img {
+    height: 15rem;
+    max-width: 95%;
+    border-radius: 10%;
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.card-features {
+    height: 15rem;
+}
+
+.card-features ul {
+    display: block;
+    width: 100%;
+    margin: 1%;
+    font-size: 1.1rem;
+}
+
+.card-features li {
+    margin: 1%;
+}
+
+@media screen and (max-width:1199px){
+    
+    #features > div > div {
+        margin: 2% 0%;
+        display: flex;
+        justify-content: center;
+    }
+
+    #image-examples > div > div {
+        margin: 2% 0%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .card {
+        min-width: fit-content;
+    }
+
+}
+
+.footer{
+    background-color: #ADC4CE;
+    width: 100%;
+    text-align: center;
+    padding: 2rem;
+}
+
+.btn-header-active {
+    outline: 2px solid #EEE0C9;
+}
+
+.btn-header-hover {
+    background-color: #EEE0C9 !important;
+}
+
+.nav-item {
+    margin: 2%;
+}
+
+.lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+}
+.lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+}
+
+.lightbox-close {
+    color: white;
+    position: absolute;
+    top: 10px;
+    right: 25px;
+    font-size: 35px;
+    font-weight: bold;
+    background: none;
+    border: none;
+}
+
+.lightbox {
+    animation-name: zoom;
+    animation-duration: 0.6s;
+}
+
+@keyframes zoom {
+    from {transform:scale(0)}
+    to {transform:scale(1)}
+  }
+
+#searched-elements {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    flex-grow: 1;
+    align-items: center;
+    background-color: #EEE0C9;
+    padding-top: 2%;
+}
+
+#searched-elements ul {
+    list-style: none;
+    flex-direction: column;
+    width:20%
+    
+}
+
+#searched-elements li {
+    font-size: 1rem;
+    margin: 2% 0%;
+    
+}
+
+.search-list {
+    width: 10px;
+    margin-right: 5%;
+}
+
+/* 96B6C5  ADC4CE  EEE0C9  F1F0E8*/

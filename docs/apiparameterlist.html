@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API References</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+    <div class = "row">
+        <button class="btn btn-primary col-12" id="btn-collapse-navbar" type="button" data-bs-toggle ="collapse" data-bs-target="#navbar-container" aria-expanded="false" aria-controls="navbar-container">
+            <img src="./assets/svgs/list.svg" />
+        </button>
+        <div class="collapse navbar-collapse col-12" id="navbar-container"></div>
+        <div class="navbar col-2"></div>
+        
+    <div class = "content">
+        <div class="col-12 col-md-9 offset-md-3" id = "references">
+            <h1>API Reference</h1>
+            <hr>
+
+            <div class="api-code-container">
+                <div><h2>List of Parameters</h2></div>
+                <div>
+                    <button onclick="location.href='apiseeding.html'" class="button-next" form>Previous</button>
+                    <button onclick="location.href='api.html'" class="button-next">Next</button>
+                </div>
+            </div>
+            <p>
+                Below, we list all the parameters that can be set to run and plot a simulation from a terminal. The parameters can be set 
+                either inline in the command line or imported from a .txt file. One or two minus signs should be preappended, if short names 
+                or long names are used, respectively.
+            </p>
+
+            <h3>Simulation Run Parameters</h3>
+
+            <p>
+                <span class="bold">Note:</span> The parameters f and a are on/off flag arguments. They should be set accordingly.
+            </p>
+            
+            <table>
+                <tr>
+                    <th>Short Name</th>
+                    <th>Long Name</th>
+                    <th>Description</th>
+                </tr>
+                <tr id="sim">
+                    <td>sim</td>
+                    <td>simulation_type</td>
+                    <td>Type of simulation, recommended normal unless you use fragmentation.</td>
+                </tr>
+                <tr id="tmp">
+                    <td>tmp</td>
+                    <td>temperature</td>
+                    <td>NetCDF temperature file.</td>
+                </tr>
+                <tr id="c">
+                    <td>c</td>
+                    <td>current</td>
+                    <td>NetCDF current file.</td>
+                </tr>
+                <tr id="o">
+                    <td>o</td>
+                    <td>outfile</td>
+                    <td>NetCDF outfile path.</td>
+                </tr>
+                <tr id="b">
+                    <td>b</td>
+                    <td>bathymetry</td>
+                    <td>NetCDF seafloor depth file.</td>
+                </tr>
+                <tr id="buff">
+                    <td>buff</td>
+                    <td>readerbuffer</td>
+                    <td>OceanDrift reader vertical buffer size. Default should be sufficient.</td>
+                </tr>
+                <tr id="s">
+                    <td>s</td>
+                    <td>starttime</td>
+                    <td>Start time of simulation - format YYYY-MM-DD-h.</td>
+                </tr>
+                <tr id="w0">
+                    <td>w0</td>
+                    <td>initialvelocity</td>
+                    <td>Initial velocity in m/s, positive up. Default is -0.01.</td>
+                </tr>
+                <tr id="ffunc">
+                    <td>ffunc</td>
+                    <td>ffunction</td>
+                    <td>Fragmentation function, variables must be enclosed in ;; - example np.sqrt(;T;) / ;u; ** 2>np.random(len(;T;)).</td>
+                </tr>
+                <tr id="f">
+                    <td>f</td>
+                    <td>fragmentation</td>
+                    <td>Allow fragmentation.</td>
+                </tr>
+                <tr  id="a">
+                    <td>a</td>
+                    <td>advection</td>
+                    <td>Allow horizontal advection.</td>
+                </tr>
+                <tr  id="st">
+                    <td>st</td>
+                    <td>steps</td>
+                    <td>Number of simulation steps.</td>
+                </tr>
+                <tr id="dt">
+                    <td>dt</td>
+                    <td>timestep</td>
+                    <td>Time step of simulation - format H:M:S.</td>
+                </tr>
+                <tr id="dto">
+                    <td>dto</td>
+                    <td>timestepoutput</td>
+                    <td>Output time step of simulation - format H:M:S. Recommended use for long simulations - decrease the number of saved steps.</td>
+                </tr>
+                <tr id="d">
+                    <td>d</td>
+                    <td>decaytype</td>
+                    <td>Type of decay rate - linear or exp</td>
+                </tr>
+                <tr id="log">
+                    <td>log</td>
+                    <td>loglevel</td>
+                    <td>Level of logging info displayed in console, while running a simulation.</td>
+                </tr>
+                <tr id="oceanonly">
+                    <td>oceanonly</td>
+                    <td>oceanonly</td>
+                    <td>Move land particles to sea. Recommended use: do not set this, unless the number of elements is sufficiently small. Otherwise you will run out of memory space.
+                        The reason is in opendrift handling of such particles. It is sfar better to simply mask out such elements in preprocessing, see e.g. the 
+                        <a class="code-method" href="apiseeding.html">mask_grid()</a> method.
+                    </td>
+                </tr>
+                <tr id="sdata">
+                    <td>sdata</td>
+                    <td>seeddata</td>
+                    <td>Path to initial seed pickle data file.</td>
+                </tr>
+                <tr id="mdtype">
+                    <td>mdtype</td>
+                    <td>microbialdecaytype</td>
+                    <td>Type of biomas rate - mass or area</td>
+                </tr>
+                <tr id="wtype">
+                    <td>wtype</td>
+                    <td>vertical_velocity_type</td>
+                    <td>Type of vertical sinking velocity - constant or variable</td>
+                </tr>
+                <tr id="ev">
+                    <td>ev</td>
+                    <td>export_variables</td>
+                    <td>Names of variables to be exported. Either separate variables with a comma, or specify export level with number. 
+                        Level 0 returns all variables.</td>
+                </tr>
+                <tr id="sf">
+                    <td>sf</td>
+                    <td>splitfactor</td>
+                    <td>Split simulation to sf subsimulations and run them with the grid simulation_type.</td>
+                </tr>
+            </table>
+            
+            <h3>Simulation Plot Parameters</h3>
+            
+            <p>
+                <span class="bold">Note:</span> The method and files parameters are positional arguments. They should include only their actual values, rather 
+                than their respective names as well.
+            </p>
+
+            <p>
+                <span class="bold">Note:</span> The parameters abs, add and diff are on/off flag arguments. They should be set accordingly.
+            </p>
+            
+            <table>
+                <tr>
+                    <th>Short Name</th>
+                    <th>Long Name</th>
+                    <th>Description</th>
+                </tr>
+                <tr id="method">
+                    <td>method</td>
+                    <td></td>
+                    <td>Ploting method to call.</td>
+                </tr>
+                <tr id="files">
+                    <td>files</td>
+                    <td></td>
+                    <td>NetCDF filepaths to simulations. Each file should occupy one line in the parameters file.</td>
+                </tr>
+                <tr id="lons">
+                    <td>lons</td>
+                    <td>lons</td>
+                    <td>.txt file of longitude seed. If None -180:180:1</td>
+                </tr>
+                <tr id="lats">
+                    <td>lats</td>
+                    <td>lats</td>
+                    <td>.txt file of latitude seed. If None -90:90:1</td>
+                </tr>
+                <tr id="cmap">
+                    <td>cmap</td>
+                    <td>cmap</td>
+                    <td>Colormap.</td>
+                </tr>
+                <tr id="t">
+                    <td>t</td>
+                    <td>title</td>
+                    <td>Figure title - format aaa_bbb_ccc</td>
+                </tr>
+                <tr id="abs">
+                    <td>abs</td>
+                    <td>absolute</td>
+                    <td>Set, if you would like the variables to have absolute values.</td>
+                </tr>
+                <tr id="diff">
+                    <td>diff</td>
+                    <td>diff</td>
+                    <td>Set, if you would like to display the differnece between simulation variables.</td>
+                </tr>
+                <tr id="add">
+                    <td>add</td>
+                    <td>add</td>
+                    <td>Set, if you would like to display the sum of simulation variables.</td>
+                </tr>
+                <tr id="oplot">
+                    <td>o</td>
+                    <td>outfile</td>
+                    <td>Outfile path, where the plot is saved.</td>
+                </tr>
+                <tr id="fs">
+                    <td>fs</td>
+                    <td>figsize</td>
+                    <td>Figsize - format W:H</td>
+                </tr>
+                <tr id="fts">
+                    <td>fts</td>
+                    <td>fontsize</td>
+                    <td>Fontsize in px.</td>
+                </tr>
+                <tr id="fwgt">
+                    <td>fwgt</td>
+                    <td>fontweight</td>
+                    <td>Fontweight.</td>
+                </tr>
+                <tr id="depth">
+                    <td>d</td>
+                    <td>depth</td>
+                    <td>Depth at which calculations take place. If >= 5000 (<=-5000), it is set to sea floor.</td>
+                </tr>
+                <tr id="clip">
+                    <td>clip</td>
+                    <td>clip</td>
+                    <td>Clip values - format Vmin:Vmax. Use m for minus sign.</td>
+                </tr>
+                <tr id="sh">
+                    <td>sh</td>
+                    <td>shrink</td>
+                    <td>Shrink colorbar in percentage (between 0 and 1).</td>
+                </tr>
+                <tr id="loc">
+                    <td>loc</td>
+                    <td>locations</td>
+                    <td>SPeciffic locations - format lon1:lat1,lon2:lat2...</td>
+                </tr>
+                <tr id="p1">
+                    <td>p1</td>
+                    <td>prop1</td>
+                    <td>Property to plot on x axis in drifter_properties method.</td>
+                </tr>
+                <tr id="p2">
+                    <td>p2</td>
+                    <td>prop2</td>
+                    <td>Property to plot on y axis drifter_properties method.</td>
+                </tr>
+                <tr id="cblabel">
+                    <td>cblabel</td>
+                    <td>colorbarlabel</td>
+                    <td>Label of colorbar.</td>
+                </tr>
+                <tr id="xlabel">
+                    <td>xlabel</td>
+                    <td>xlabel</td>
+                    <td>X-axis label.</td>
+                </tr>
+                <tr id="ylabel">
+                    <td>ylabel</td>
+                    <td>ylabel</td>
+                    <td>Y-axis label.</td>
+                </tr>
+                <tr id="xlim">
+                    <td>xlim</td>
+                    <td>xlim</td>
+                    <td>Xlim - format xmin:xmax</td>
+                </tr>
+                <tr id="ylim">
+                    <td>ylim</td>
+                    <td>ylim</td>
+                    <td>Ylim - format ymin:ymax</td>
+                </tr>
+                <tr id="lw">
+                    <td>lw</td>
+                    <td>linewidth</td>
+                    <td>Line width.</td>
+                </tr>
+                <tr id="legend">
+                    <td>legend</td>
+                    <td>legend</td>
+                    <td>Legend of labels - format label1,label2</td>
+                </tr>
+                <tr id="color">
+                    <td>color</td>
+                    <td>color</td>
+                    <td>Plot color - format color1,color2,color3...</td>
+                </tr>
+                <tr id="ls">
+                    <td>ls</td>
+                    <td>linestyle</td>
+                    <td>Plot linestyles - format ls1,ls2,ls3...</td>
+                </tr>
+                <tr id="bins">
+                    <td>bins</td>
+                    <td>bins</td>
+                    <td>Histogram number of bins.</td>
+                </tr>
+                <tr id="group">
+                    <td>group</td>
+                    <td>group</td>
+                    <td>Group cells by biome/latitude/longitude.</td>
+                </tr>
+                <tr id="diffidx">
+                    <td>diffidx</td>
+                    <td>diffidx</td>
+                    <td>Index at which the input files are split into two groups, which are added separateley. 
+                        The second group sum is then subtracted from the first group sum. Default is half.</td>
+                </tr>
+                <tr id="mc">
+                    <td>mc</td>
+                    <td>martincurve</td>
+                    <td>Martin curve coefficient. If None, it will not be plotted.</td>
+                </tr>
+                <tr id="supt">
+                    <td>supt</td>
+                    <td>suptitle</td>
+                    <td>Titles for specific axes. Format ax1title,ax2title...</td>
+                </tr>
+                <tr id="mhwpath">
+                    <td>mhwpath</td>
+                    <td>mhwintesitypath</td>
+                    <td>Will be deprecated.</td>
+                </tr>
+                <tr id="dpi">
+                    <td>dpi</td>
+                    <td>dpi</td>
+                    <td>Output image dpi resolution.</td>
+                </tr>
+            </table>            
+        </div>
+        <div class="footer col-12 col-md-9 offset-md-3"></div>
+    </div>
+    </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="./index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.17.1/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

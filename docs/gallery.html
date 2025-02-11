@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gallery</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.css" rel="stylesheet">
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+    <div class = "row">
+        <button class="btn btn-primary col-12" id="btn-collapse-navbar" type="button" data-bs-toggle ="collapse" data-bs-target="#navbar-container" aria-expanded="false" aria-controls="navbar-container">
+            <img src="./assets/svgs/list.svg" />
+        </button>
+        <div class="collapse navbar-collapse col-12" id="navbar-container"></div>
+        <div class="navbar col-2"></div>
+        
+    <div class = "content">
+        <div class="col-12 col-md-9 offset-md-3" id = "gallery">
+            <h1>Gallery</h1>
+            <hr>
+            <div class="container">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/mass_map.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text" >
+                            Mass Flux Maps
+                        </div>
+
+                        <div class="card-button">
+                            <button id="btn-mass-flux-map" class="btn gallery-button">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/mass_exp_ssp585.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Mass Flux Difference
+                        </div>
+
+                        <div class="card-button">
+                            <button id="btn-mass-flux-map-copy" class="btn gallery-button">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/locations.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Sinking Locations
+                        </div>
+    
+                        <div class="card-button">
+                            <button id="btn-drifter-locations" class="btn gallery-button">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/z_mass.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Sinking Dynamics
+                        </div>
+    
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-drifter-properties">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/biome_area_exp_100.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Flux Distributions
+                        </div>
+    
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-flux-distribution">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/mean_lon_flux2.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Latitude Averaged Fluxes
+                        </div>
+    
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-lat-mean">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                  
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/fluxes_100.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Biome Averaged Fluxes
+                        </div>
+    
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-biome-flux-mean">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/100_exp_mass_current.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Current Strength
+                        </div>
+
+                        <div class="card-button">
+                            <button  class="btn gallery-button" id="btn-current-strength">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/animation.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Sinking Animation
+                        </div>
+
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-sinking-animation">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+              
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/animation_current.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Current Animation
+                        </div>
+
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-current-animation">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/frag.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Fragmentation Animation
+                        </div>
+
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-sinking-animation-copy">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/mass_rates.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Tabulated Values
+                        </div>
+
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-mass-table">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/z_distribution.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Vertical Particle Distribution
+                        </div>
+
+                        <div class="card-button">
+                            <button class="btn gallery-button" id="btn-z-dist">Code</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div class="col-12 col-md-9 offset-md-3 expanded-code">
+            <div class="expanded-code-container">
+                <div id="expanded-code-header">
+                    <h2></h2>
+                    <button class="btn">Back To Gallery</button>
+                </div>
+                <div class="expanded-code-content">
+                    <p id="expanded-code-caption"></p>
+                    <p>First save the following parameters to a .txt file:</p>
+                    <div id="expanded-code-example">
+                        <pre class ="txt">
+                        </pre>
+                        <p>Now simply run the command bellow in a terminal</p>
+                        <pre class="command-line p-1" data-user="user" data-host="~/CarbonDrift">
+                            <code class="language-bash">plot_simulation  @/path_to_params.txt</code></pre>
+                        This will run the <a class="code-method"></a> method, which produces the output bellow.
+                        </p>
+                    <div id="expanded-code-img">
+                        <img id="expanded-img" src="" alt="Expanded">
+                    </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        <div class="footer col-12 col-md-9 offset-md-3"></div>
+    </div>
+    </div>
+    <div id="lightbox" class="lightbox" hidden>
+        <button class="lightbox-close">&times;</button>
+        <img id="lightbox-img" src="">
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

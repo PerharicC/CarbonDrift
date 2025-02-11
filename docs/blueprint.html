@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blueprint</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+    <div class = "row">
+        <button class="btn btn-primary col-12" id="btn-collapse-navbar" type="button" data-bs-toggle ="collapse" data-bs-target="#navbar-container" aria-expanded="false" aria-controls="navbar-container">
+            <img src="./assets/svgs/list.svg" />
+        </button>
+        <div class="collapse navbar-collapse col-12" id="navbar-container"></div>
+        <div class="navbar col-2"></div>
+        <div class="col-12 col-md-9 offset-md-3 model-scheme" style="margin-top: 15px;">
+            <h1>CarbonDrift Blueprint</h1>
+            <hr>
+        </div>
+    </div>
+    <div class = "row">
+        <div class="col-12 col-md-8 offset-md-3 model-scheme">
+        <img class="diagram" src="./assets/images/diagram_nogrid.png" width="100%" alt="CarbonDrift Blueprint">
+        
+        <p id = "diagram-description">The diagram above outlines the <a href="simulation1.html">terminal simulation</a> implementation.
+        </p>
+        </div>
+    </div>
+    <div class="row" id="blueprint-1">
+        <div class="col-12 col-md-8 col-lg-4 offset-md-3 model-scheme">
+            <ol>
+                <li>First we can provide a number of inputs 
+            into <a class="code-method" href="/docs/apisimulationrun.html">run_simulation()</a> from say a .txt file (see <a href="simulation1.html">Terminal Simulation</a>).</li>
+                <ol>
+                    <li>The seeding data is provided from a pickle file, which can be constructed from the <a href="/docs/apiseeding.html" class="code-class">Seed</a> class.</li>
+                </ol>
+                <li>The <a class="code-method" href="/docs/apisimulationrun.html">run_simulation()</a> method then preforms some preprocessing.</li>
+                <ol>
+                    <li>First it classifies inputs into groups in the <a class="code-class" href="/docs/apiparams.html">Parameters</a> class.</li>
+                    <li>Next it reads the seed-data in the <a class="code-class" href="/docs/apiseeding.html">SeedFromFile</a> class.</li>
+                </ol>
+            </ol> 
+        </div>
+        <div class="col-12 col-md-8 col-lg-4 offset-0 offset-md-3 offset-lg-0 model-scheme">
+            <ol start="3">
+                <li>Next, it reads the simulation type. If <a href="apiparameterlist.html#sim" class="code-argument">sim</a> is set to grid, the <a class="code-class" href="/docs/apigridrun.html">GridRun</a> class is accessed, 
+                    which runs the normal simulation <a class="code-argument" href="apiparameterlist.html#sf">splitfactor</a> times with less particles.</li>
+                <li>Next, based on the <a class="code-argument" href="apiparameterlist.html#d">decaytype</a> parameter, a CarbonDrift object is initialized 
+                    either from <a class="code-file" href="apimassdecay.html">models.massdecay.carbondrift</a> or 
+                    <a class="code-file" href="apiareadecay.html">models.areadecay.carbondrift</a> for <a href="theory.html">mass-dependent decay</a> 
+                    or <a href="theory.html">surface-dependent decay</a>, respectively.</li>
+                <li>The chosen model is then ran for <a href="apiparameterlist.html#st" class="code-argument">st</a> simulation steps, where the main methods that are called in the 
+                        <a class="code-method" href="apimassdecay.html">update()</a> method are shown.
+                    </li>
+                <li>Finally, the simulation is saved to a netCDF <a href="apiparameterlist.html#o" class="code-argument">outfile</a>.</li>
+            </ol>            
+        </div>
+        <div class="footer col-12 col-md-9 offset-md-3"></div>
+    </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API References</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+    <div class = "row">
+        <button class="btn btn-primary col-12" id="btn-collapse-navbar" type="button" data-bs-toggle ="collapse" data-bs-target="#navbar-container" aria-expanded="false" aria-controls="navbar-container">
+            <img src="./assets/svgs/list.svg" />
+        </button>
+        <div class="collapse navbar-collapse col-12" id="navbar-container"></div>
+        <div class="navbar col-2"></div>
+        
+    <div class = "content">
+        <div class="col-12 col-md-9 offset-md-3" id = "references">
+            <h1>API Reference</h1>
+            <hr>
+
+            <div class="api-code-container">
+                <div><h2>models.logger</h2></div>
+                <div>
+                    <button onclick="location.href='apicarbon.html'" class="button-next" form>Previous</button>
+                    <button onclick="location.href='apiplots.html'" class="button-next">Next</button>
+                </div>
+            </div>
+
+            <h3>Class</h3>
+            <p><span class="code-class">Logger</span>: carbondrift logging.</p>
+
+            <h4>Class Methods</h4>
+            <ul class="expandable">
+                <li><span class="code-method">__init__</span>
+                    <div class="method-content">
+                        <div class="code-snippet">
+                            <pre><code class="language-python">
+                            def __init__(self, name, level = 10):
+                                fields = coloredlogs.DEFAULT_FIELD_STYLES
+                                fields['levelname']['color'] = 'magenta'
+                                logging.captureWarnings(True)
+                                logger = logging.getLogger(name)
+                                logger.setLevel(level)
+                                handler = logging.StreamHandler()  # For console output
+                                handler.setLevel(level)
+                        
+                                format = '%(asctime)s %(levelname)-7s %(name)s:%(lineno)d: %(message)s'
+                                coloredlogs.install(level=level, logger=logger, fmt=format, datefmt='%H:%M:%S', field_styles=fields)
+                        
+                                self.LOGGER = logger
+                                self.HANDLER = handler
+                            </code></pre>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="footer col-12 col-md-9 offset-md-3"></div>
+    </div>
+    </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="./index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.17.1/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

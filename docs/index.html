@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CarbonDrift</title>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="./styles/style_main.css" rel="stylesheet">
+</head>
+<body>
+    <header>
+            <div class="container">
+            <div class="row">
+                <div class="col-0 col-xl-4"></div>
+                <div class="col-12 col-md-6 col-xl-4"> 
+                    <ul class="nav nav-pills">
+                        <li class="nav-item"><button id="btn-header-home" class="btn btn-header btn-header-active">Home</button></li>
+                        <li class="nav-item"><button id="btn-header-features" class="btn btn-header">Features</button></li>
+                        <li class="nav-item"><button id="btn-header-docs" class="btn btn-header" onclick="location.href='theory.html'">Documentation</button></li>
+                    </ul>
+                </div>
+                <div class="col-12 col-md-6 col-xl-4 d-flex" id="search">
+                    <form role="search" id="search-bar">
+                        <input type="search" class="form-control" placeholder="Search documentation" aria-label="Search">
+                    </form>
+                </div>
+            </div>
+            </div>
+    </header>
+    <section class="title">
+    <h1>CarbonDrift</h1>
+    </section>
+    <section id="CD-summary">
+        <p>
+            An OceanDrift module extension from
+            the <a href ="https://opendrift.github.io/index.html">opendrift</a> python environment.
+            It models Gelatinous Zooplankton vertical sinking using Decay Rate to temperature
+            dependenices (<a href="references.html" class="cite">Lebrato et al, 2019</a>), while also allowing for horizontal advection.
+        </p>
+    </section>
+    <section id="main-carousel">
+        <div class="carousel-wraper">
+        <div class="container" id = "image-examples">
+            <div class="row">
+                <div class="col-xl-4 col-12">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/frag.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Sinkining Animations
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-4 col-12">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/mass_exp_ssp585.png">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Mass Flux Visualizations
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-12">
+                    <div class="card shadow-sm flex-container">
+                        <div class ="card-image">
+                            <img src="assets/images/z_distribution.gif">
+                        </div>
+                        <div class="card-body flex-container">
+                        <div class="card-text">
+                            Sinking Locations
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container" id="features" hidden>
+            <div class="row row-cols-1 row-cols-xl-3">
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class="card-title">
+                            <img src="./assets/svgs/box-fill.svg"> Modeling
+                        </div>
+                        <div class="card-features">
+                            <ul>
+                                <li>Mass-Dependent and Surface-Dependent</li>
+                                <li>Constant and Variable sinking speed</li>
+                                <li>Horizontal Advection with sea currents</li>
+                                <li>Stochastic fragmentation</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class="card-title">
+                            <img src="./assets/svgs/lightning-fill.svg"> Numerical Capabilities
+                        </div>
+                        <div class="card-features">
+                            <ul>
+                                <li>Run simulations from terminal</li>
+                                <li>Numerous plotting methods for better visualization</li>
+                                <li>Efficient memory handling in case of large simulations</li>
+                                <li>Easy to adapt</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card shadow-sm flex-container">
+                        <div class="card-title">
+                            <img src="./assets/svgs/bar-chart-fill.svg"> Recent Data Inputs
+                        </div>
+                        <div class="card-features">
+                            <ul>
+                                <li>Use of current initial biomass data (<a href="references.html" class="cite">Luo et al, 2020</a>)</li>
+                                <li>Exponential and Linear decay rates (<a href="references.html" class="cite">Lebrato et al, 2019</a>)</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+    <div id="lightbox" class="lightbox" hidden>
+        <button class="lightbox-close">&times;</button>
+        <img id="lightbox-img" src="" alt="Enlarged Image">
+    </div>
+    <div id ="searched-elements" hidden>
+        <h2>Search Results:</h2>
+    </div>
+    <footer class="footer">
+        <div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-c-circle" viewBox="0 0 16 16">
+                <path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.146 4.992c-1.212 0-1.927.92-1.927 2.502v1.06c0 1.571.703 2.462 1.927 2.462.979 0 1.641-.586 1.729-1.418h1.295v.093c-.1 1.448-1.354 2.467-3.03 2.467-2.091 0-3.269-1.336-3.269-3.603V7.482c0-2.261 1.201-3.638 3.27-3.638 1.681 0 2.935 1.054 3.029 2.572v.088H9.875c-.088-.879-.768-1.512-1.729-1.512"/>
+            </svg> <span id="copyright-text"></span>
+        </div>
+    </footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
