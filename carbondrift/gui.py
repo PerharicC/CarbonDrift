@@ -1,12 +1,13 @@
+import tkinter.scrolledtext
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import ImageTk, Image
 import tkinter
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import threading
 import time
 import os
-# from importlib import resources
+import logging
 
 from datetime import datetime, timedelta
 # from copy import copy
@@ -21,17 +22,44 @@ import carbondrift.models.areadecay.carbondrift as acd
 # from opendrift.readers import reader_global_landmask
 # from opendrift.readers import reader_netCDF_CF_generic
 from carbondrift.simulation.seeding import *
+from carbondrift.simulation.run import valid_date, valid_fragmentation_function, valid_time_step
 
 from carbondrift.models.logger import Logger
+from carbondrift.models import plots
+from carbondrift.plotting.plot_run import configure_locations
 
 log = Logger("carbondrift.carbondrift_gui")
 logger = log.LOGGER
+#/home/peharicc/Documents/masters/MassDecay/constant_density_sim/chordata_M_seed.pkl
+#[8.04484878e+14 9.06409492e+14 9.40079174e+14 4.10371741e+13]
+#[5.02530121e+14 3.58590093e+14 4.08755587e+14 0.00000000e+00]
+#[2.74038431e+14 1.29277772e+14 1.97832783e+14 1.43155820e+14]
+
+#[1.38098354e+14 1.28393513e+14 1.48102080e+14 6.55377619e+12]
+#[9.33143752e+13 6.07586780e+13 7.50577591e+13 0.00000000e+00]
+#[5.78697234e+13 2.76558579e+13 4.26254227e+13 2.28242305e+13]
+
+class LoggerHandler(logging.Handler):
+    def __init__(self, text_widget):
+        logging.Handler.__init__(self)
+        self.text_widget = text_widget
+
+    def emit(self, record):
+        log_entry = self.format(record) + "\n"
+        self.text_widget.after(0, self.append_log, log_entry)
+
+    def append_log(self, log_entry):
+        self.text_widget.config(state="normal")
+        self.text_widget.insert(tkinter.END, log_entry)
+        self.text_widget.see(tkinter.END)  # Auto-scroll to the latest entry
+        self.text_widget.config(state="disabled")
 
 class CarbonDriftGUI(tkinter.Tk):
     def __init__(self):
         tkinter.Tk.__init__(self)
         self.title("CarbonDrift " + carbondrift.__version__ + " GUI")
-
+        style = ttk.Style()
+        style.theme_use("clam")
         self.supplementary_data_dir = os.path.join(
             os.path.dirname(os.path.dirname(carbondrift.__file__)),
             "supplementary_data")
@@ -61,9 +89,31 @@ class CarbonDriftGUI(tkinter.Tk):
         self.setup_reader_frame()
         self.setup_configure_frame()
         self.setup_simulation_type_frame()
+        self.setup_simulation_run_frame()
+        self.setup_plotting_frame()
+
+        self.SEEDCLICKED=False
+        self.INITIALIZECLICKED = False
+        
+        self.saved_ev_selection = set()
+        self.ev_list.bind("<FocusOut>", self.save_ev_selection)
+        self.ev_list.bind("<FocusIn>", self.restore_ev_selection)
 
         self.thread = None
         self.sdata = None
+        self.plotfilesplus = []
+        self.plotfilesminus = []
+
+        style.configure(
+            "Success.Horizontal.TProgressbar",
+            troughcolor="white",
+            background="green",
+            bordercolor="gray",
+            lightcolor="lightgreen",
+            darkcolor="darkgreen",
+            pbarrelief = "groove"
+        )
+
 
     def setup_seed_frame(self):
         self.seed_from_file = tkinter.Frame(self.simseed, bg='lightgray', bd=2,
@@ -75,6 +125,7 @@ class CarbonDriftGUI(tkinter.Tk):
         
         seed_file_label = tkinter.Label(self.seed_from_file, text="File Path:", font=self.frame_font).grid(row=1, column=0, sticky="w")
         self.seed_file_entry = tkinter.Entry(self.seed_from_file)
+        self.seed_file_entry.insert(0, "/home/peharicc/Documents/masters/MassDecay/constant_density_sim/chordata_M_seed.pkl")
         self.seed_file_entry.bind("<Key>", self.disable_new_seed)
         self.seed_file_entry.grid(row=1, column=1, sticky="w")
 
@@ -236,7 +287,7 @@ class CarbonDriftGUI(tkinter.Tk):
         self.simulationparams = tkinter.Frame(self.simtype, bg='lightgray', bd=2,
                             relief=tkinter.SUNKEN, pady=25, padx=25)
         self.simulationparams.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
-        
+
         simtype_label = tkinter.Label(self.simulationparams, text="type", font=self.frame_font).grid(row=0, column=0, sticky="w", pady=(0, 10))
         self.typevar = tkinter.StringVar()
         self.type = ["normal", "grid"]
@@ -258,25 +309,27 @@ class CarbonDriftGUI(tkinter.Tk):
 
         start_label = tkinter.Label(self.simulationparams, text="start time:", font=self.frame_font).grid(row=1, column=0, sticky="w", pady=(0, 10))
         self.start_entry = tkinter.Entry(self.simulationparams)
-        self.start_entry.insert(0, "YYYY-MM-DD-h")
+        self.start_entry.insert(0, "1993-01-01-0")#"YYYY-MM-DD-h"
         self.start_entry.grid(row=1, column=1, sticky="w", padx=10, pady=(0, 10))
 
         dt_label = tkinter.Label(self.simulationparams, text="time step:", font=self.frame_font).grid(row=1, column=2, sticky="w", pady=(0, 10))
         self.dt_entry = tkinter.Entry(self.simulationparams)
-        self.dt_entry.insert(0, "h:m:s")
+        self.dt_entry.insert(0, "0:30:0")#"h:m:s"
         self.dt_entry.grid(row=1, column=3, sticky="w", padx=10, pady=(0, 10))
 
         dto_label = tkinter.Label(self.simulationparams, text="output time step:", font=self.frame_font).grid(row=1, column=4, sticky="w", pady=(0, 10))
         self.dto_entry = tkinter.Entry(self.simulationparams)
-        self.dto_entry.insert(0, "h:m:s")
+        self.dto_entry.insert(0, "1:0:0")#"h:m:s"
         self.dto_entry.grid(row=1, column=5, sticky="w", padx=10, pady=(0, 10))
 
         steps_label = tkinter.Label(self.simulationparams, text="steps:", font=self.frame_font).grid(row=1, column=6, sticky="w", pady=(0, 10))
         self.step_entry = tkinter.Entry(self.simulationparams)
+        self.step_entry.insert(0, 500)
         self.step_entry.grid(row=1, column=7, sticky="w", padx=10, pady=(0, 10))
 
         w0_label = tkinter.Label(self.simulationparams, text="init vertical\n velocity:", font=self.frame_font).grid(row=2, column=0, sticky="w", pady=(0, 10))
         self.w0_entry = tkinter.Entry(self.simulationparams)
+        self.w0_entry.insert(0, -0.01)
         self.w0_entry.grid(row=2, column=1, sticky="w", padx=10, pady=(0, 10))
 
         w0type_label = tkinter.Label(self.simulationparams, text="velocity type", font=self.frame_font).grid(row=2, column=2, sticky="w", pady=(0, 10))
@@ -302,18 +355,19 @@ class CarbonDriftGUI(tkinter.Tk):
 
         out_label = tkinter.Label(self.simulationparams, text="outfile:", font=self.frame_font).grid(row=3, column=0, sticky="w", pady=(0, 10))
         self.simout_entry = tkinter.Entry(self.simulationparams)
-        self.simout_entry.insert(0, "netCDF file")
+        self.simout_entry.insert(0, "/home/peharicc/Documents/test.nc")#"netCDF file"
         self.simout_entry.grid(row=3, column=1, sticky="w", padx=10, pady=(0, 10))
 
         ev_label = tkinter.Label(self.simulationparams, text="export\nvariables", font=self.frame_font).grid(row=3, column=2, sticky="w", pady=(0, 10))
-        self.ev_list = tkinter.Listbox(self.simulationparams, selectmode=tkinter.MULTIPLE)
+        self.ev_list = tkinter.Listbox(self.simulationparams, selectmode=tkinter.MULTIPLE, exportselection=False)
         valid_vars = ["trajectory", "time", "status", "moving", "age_seconds", "origin_marker",
                   "lon", "lat", "z", "wind_drift_factor", "current_drift_factor",
                   "terminal_velocity", "mass", "x_sea_water_velocity", "y_sea_water_velocity",
                   "land_binary_mask", "sea_water_temperature", "depth"]
+        self.current_ev_selection = ["trajectory", "time", "status", "age_seconds", "lon", "lat", "z", "mass"]
         for i, var in enumerate(valid_vars):
             self.ev_list.insert(i + 1, var)
-            if var in ["trajectory", "time", "status", "age_seconds", "lon", "lat", "z", "mass"]:
+            if var in self.current_ev_selection:
                 self.ev_list.selection_set(i)
         self.ev_list.grid(row=3, column=3, sticky="w", padx=10, pady=(0, 10))
 
@@ -325,7 +379,107 @@ class CarbonDriftGUI(tkinter.Tk):
         self.make_object.grid(row=1, column=0, rowspan=1)
         
         tkinter.Button(self.make_object, text="INITIALIZE", bg='green', command=self.on_click_initialize).grid(row=0)
+    
+    def setup_simulation_run_frame(self):
+        self.simulationlog = tkinter.Frame(self.run, bg='lightgray', bd=2,
+                            relief=tkinter.SUNKEN, pady=25, padx=25, width=100)
+        self.simulationlog.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0))
+        
+        simlog_label = tkinter.Label(self.simulationlog, text="Output Log", font=self.frame_subtitle_font).grid(row=0, column=0, pady=(0, 10))
+        self.log_text = tkinter.scrolledtext.ScrolledText(self.simulationlog, state="disabled")
+        self.log_text.grid(row=1, column=0, padx=10, pady=(0, 10))
+        self.logger = logger
+        text_handler = LoggerHandler(self.log_text)
+        text_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s: %(message)s', "%H:%M:%S"))
+        logging.getLogger().addHandler(text_handler)
+        tkinter.Button(self.simulationlog, text="RUN", bg='green', command=self.on_click_run).grid(row=3)
+    
+    def setup_plotting_frame(self):
+        self.plotparams = tkinter.Frame(self.plot, bg='lightgray', bd=2,
+                            relief=tkinter.SUNKEN, pady=25, padx=25, width=100)
+        self.plotparams.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0))
+        
+        plotmethod_label = tkinter.Label(self.plotparams, text="method", font=self.frame_font).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        self.methodvar = tkinter.StringVar()
+        self.method = np.sort(["mass_map", "current_strength", "drifter_properties", "mass_flux_map", "animate_3D",
+                       "mean_lon_mass_flux", "mass_flux_distribution", "animate_current_3D", "vertical_particle_distribution"])
+        self.methodvar.set("mass_flux_map")
+        self.method = tkinter.OptionMenu(self.plotparams, self.methodvar, *self.method, command=self.on_check_plot_method)
+        self.method.grid(row=0, column=1, padx=10, pady=(0, 10))
 
+        simulation_label_plus = tkinter.Label(self.plotparams, text="upload simulations", font=self.frame_font).grid(row=0, column=2, sticky="w", pady=(0, 10))
+        simulation_explore_plus = tkinter.Button(self.plotparams, text = "Browse Files", command = lambda:self.browse_simulations("plus")).grid(row = 0, column = 3, sticky="w",
+                                                                                                                            padx=10, pady=(0, 10))
+        
+        self.DIFF = tkinter.BooleanVar()
+        difference_button = tkinter.Checkbutton(self.plotparams, text="diff", command=self.on_click_diff,
+                                                            variable=self.DIFF).grid(row=0, column=4, sticky="w")
+        
+        self.ADD = tkinter.BooleanVar()
+        add_button = tkinter.Checkbutton(self.plotparams, text="add", padx=10,
+                                                            variable=self.ADD).grid(row=0, column=5, sticky="w")
+        
+        self.ABS = tkinter.BooleanVar()
+        add_button = tkinter.Checkbutton(self.plotparams, text="abs",
+                                                            variable=self.ABS).grid(row=0, column=6, sticky="w")
+        
+        depth_label = tkinter.Label(self.plotparams, text="depth:", font=self.frame_font, padx=10).grid(row=0, column=7, sticky="w")
+        self.depth_entry= tkinter.Entry(self.plotparams)
+        self.depth_entry.grid(row=0, column=8, sticky="w")
+
+        self.simulation_label_minus = tkinter.Label(self.plotparams, text="upload simulations\nwith minus sign", font=self.frame_font, state="disabled")
+        self.simulation_label_minus.grid(row=1, column=0, sticky="w", pady=(0, 10))
+        self.simulation_explore_minus = tkinter.Button(self.plotparams, text = "Browse Files", command = lambda:self.browse_simulations("minus"), state="disabled")
+        self.simulation_explore_minus.grid(row = 1, column = 1, sticky="w", padx=10, pady=(0, 10))
+
+        self.p1_label = tkinter.Label(self.plotparams, text="x property:", font=self.frame_font, state="disabled")
+        self.p1_label.grid(row=1, column=2, sticky="w", pady=(0, 10))
+        self.p1var = tkinter.StringVar()
+        valid_vars = np.sort(["mass", "lon", "lat", "z", "time", "x_sea_water_velocity",
+                  "y_sea_water_velocity", "sea_water_temperature", "tau", "total_horizontal_velocity"])
+        self.p1var.set("mass")
+        self.p1 = tkinter.OptionMenu(self.plotparams, self.p1var, *valid_vars)
+        self.p1.config(state="disabled")
+        self.p1.grid(row=1, column=3, sticky="w", padx=10, pady=(0, 10))
+
+        self.p2_label = tkinter.Label(self.plotparams, text="y property:", font=self.frame_font, state="disabled")
+        self.p2_label.grid(row=1, column=4, sticky="w", pady=(0, 10))
+        self.p2var = tkinter.StringVar()
+        self.p2var.set("z")
+        self.p2 = tkinter.OptionMenu(self.plotparams, self.p2var, *valid_vars)
+        self.p2.config(state="disabled")
+        self.p2.grid(row=1, column=5, sticky="w", padx=10, pady=(0, 10))
+
+        self.loc_label = tkinter.Label(self.plotparams, text="locations:", font=self.frame_font, state="disabled")
+        self.loc_label.grid(row=1, column=7, sticky="w")
+        self.loc_entry= tkinter.Entry(self.plotparams, state="disabled")
+        self.loc_entry.insert(0, "lon1:lat1,lon2:lat2...")
+        self.loc_entry.grid(row=1, column=8, sticky="w", padx=10)
+
+        title_label = tkinter.Label(self.plotparams, text="title:", font=self.frame_font).grid(row=2, column=0, sticky="w")
+        self.title_entry= tkinter.Entry(self.plotparams)
+        self.title_entry.grid(row=2, column=1, sticky="w", padx=10)
+
+        xlabel_label = tkinter.Label(self.plotparams, text="xlabel:", font=self.frame_font).grid(row=2, column=2, sticky="w")
+        self.xlabel_entry= tkinter.Entry(self.plotparams)
+        self.xlabel_entry.grid(row=2, column=3, sticky="w", padx=10)
+
+        ylabel_label = tkinter.Label(self.plotparams, text="ylabel:", font=self.frame_font).grid(row=2, column=4, sticky="w")
+        self.ylabel_entry= tkinter.Entry(self.plotparams)
+        self.ylabel_entry.grid(row=2, column=5, sticky="w", padx=10)
+
+        cblabel_label = tkinter.Label(self.plotparams, text="colorbar label:", font=self.frame_font).grid(row=2, column=6, sticky="w")
+        self.cblabel_entry= tkinter.Entry(self.plotparams)
+        self.cblabel_entry.grid(row=2, column=7, sticky="w", padx=10)
+
+        outfile_plot_label = tkinter.Label(self.plotparams, text="outfile:", font=self.frame_font).grid(row=3, column=0, sticky="w")
+        self.oplot_entry= tkinter.Entry(self.plotparams)
+        self.oplot_entry.grid(row=3, column=1, sticky="w", padx=10)
+        
+        tkinter.Button(self.plotparams, text="PLOT", bg='green', command=self.on_click_plot).grid(row=4, column = 0)
+        self.viewbutton = tkinter.Button(self.plotparams, text="VIEW", bg='green', command=self.on_click_view_plot, state="disabled")
+        self.viewbutton.grid(row=4, column = 1)
+    
     def on_check_save_seed(self):
         if self.SAVESEED.get():
             self.outfile_entry["state"] ="normal"
@@ -351,11 +505,122 @@ class CarbonDriftGUI(tkinter.Tk):
             self.sf_entry["state"]="normal"
 
     def on_click_initialize(self):
+        self.INITIALIZECLICKED = True
         self.update_idletasks()
         if self.typevar.get() == "normal":
             self.initialize_normal_run()
         else:
             self.initialize_grid_run()
+
+    def on_click_run(self):
+        if not self.SEEDCLICKED:
+            self.error = ValueError("Please provide Seed Data first.")
+            self.launch_error_window(self.error)
+        elif not self.INITIALIZECLICKED:
+            self.error = ValueError("Please initialize Simulation first.")
+            self.launch_error_window(self.error)
+        else:
+            run_params = {"time_step":valid_time_step(self.dt_entry.get()), "time_step_output":valid_time_step(self.dto_entry.get()),
+                        "steps":int(self.step_entry.get()), "outfile":self.simout_entry.get(),
+                        "export_variables":[self.ev_list.get(i) for i in self.ev_list.curselection()]}
+            self.run_progress = ttk.Progressbar(
+                self.simulationlog, mode="determinate",
+                orient="horizontal", length=200, style='Success.Horizontal.TProgressbar'
+                                                )
+            self.run_progress.grid(row = 2, column=0, padx=10, pady=(0, 10))
+            self.run_progress['value'] = self.obj.steps_calculation
+            self.simulation_complete_event = threading.Event()
+            self.thread = threading.Thread(target=self.run_simulation, daemon=True, args=[run_params])
+            self.thread.start()
+            self.after(1000, self.get_simulation_progress)
+
+    def on_check_plot_method(self, event):
+        if event == "drifter_properties":
+            self.p1_label.config(state="normal")
+            self.p1.config(state="normal")
+            self.p2_label.config(state="normal")
+            self.p2.config(state="normal")
+            self.loc_label.config(state="normal")
+            self.loc_entry.config(state="normal")
+        else:
+            self.p1_label.config(state="disabled")
+            self.p1.config(state="disabled")
+            self.p2_label.config(state="disabled")
+            self.p2.config(state="disabled")
+            self.loc_label.config(state="disabled")
+            self.loc_entry.config(state="disabled")
+    
+    def on_click_plot(self):
+        self.update_idletasks()
+        self.launch_progress_window("Plotting")
+        self.thread = threading.Thread(target=self.plot_simulation, daemon=True)
+        self.thread.start()
+        self.after(1000, self.get_plot_progress)
+    
+    def plot_simulation(self):
+        print(np.append(self.plotfilesplus, self.plotfilesminus))
+        p = plots.Plot(*np.append(self.plotfilesplus, self.plotfilesminus), add = self.ADD.get(), diff=self.DIFF.get(),
+                       diffidx=len(self.plotfilesplus), title = self.title_entry.get(), xlabel=self.xlabel_entry.get(),
+                       ylabel=self.ylabel_entry.get(), colorbarlabel=self.cblabel_entry.get(), absolute=self.ABS.get(),
+                       locations=configure_locations(self.loc_entry.get()), prop1=self.p1var.get(), prop2=self.p2var.get(),
+                       depth=-abs(float(self.depth_entry.get())), outfile=self.oplot_entry.get())
+        getattr(p, self.methodvar.get())()
+    
+    def get_plot_progress(self):
+        if self.thread.is_alive():
+            self.after(1000, self.get_plot_progress)
+        else:
+            self.progress_window.destroy()
+            self.viewbutton.config(state="normal")
+    
+    def on_click_view_plot(self):
+        pass
+    
+    def on_click_diff(self):
+        if self.DIFF.get():
+            self.simulation_label_minus.config(state = "normal")
+            self.simulation_explore_minus.config(state = "normal")
+        else:
+            self.simulation_label_minus.config(state = "disabled")
+            self.simulation_explore_minus.config(state = "disabled")
+
+    def browse_simulations(self, sign):
+        filetypes = (
+            ('netCDF files', '*.nc'),
+            ('All files', '*.*')
+        )
+
+        filenames = filedialog.askopenfilenames(initialdir = os.getcwd(),
+                                          title = "Select a File",
+                                          filetypes = filetypes)
+        if sign=="plus":
+            self.plotfilesplus = list(filenames)
+        else:
+            self.plotfilesminus = list(filenames)
+
+    def get_simulation_progress(self):
+        num_steps = int(self.step_entry.get())
+        current_step = self.obj.steps_calculation
+        progress_value = current_step / num_steps * 100
+        
+        self.run_progress['value'] = round(progress_value)
+        if self.thread.is_alive():
+            self.after(1000, self.get_simulation_progress)
+        else:
+            self.run_progress.destroy()
+
+    def run_simulation(self, args):
+        self.obj.run(**args)
+
+    def save_ev_selection(self, event):
+        """Store selected items when listbox loses focus."""
+        self.saved_ev_selection = set(self.ev_list.curselection())
+    
+    def restore_ev_selection(self, event):
+        """Restore selection when listbox regains focus."""
+        for index in self.saved_ev_selection:
+            self.ev_list.selection_set(index)
+
 
     def disable_new_seed(self, event):
         if len(self.seed_file_entry.get()) > 1:
@@ -394,6 +659,7 @@ class CarbonDriftGUI(tkinter.Tk):
         self.progress.start(10)
 
     def on_click_seed(self):
+        self.SEEDCLICKED = True
         self.update_idletasks()
         self.launch_progress_window("Seeding")
         self.thread = threading.Thread(target=self.seed, daemon=True)
@@ -487,35 +753,34 @@ class CarbonDriftGUI(tkinter.Tk):
         return config 
 
     def initialize_normal_run(self):
-        params = {"m0":self.sdata.mass, "loglevel":0, "decay_type":self.decayvar.get(), "initial_velocity":float(self.w0_entry.get()),
+        params = {"m0":self.sdata.mass, "loglevel":0, "decay_type":self.decayvar.get(), "initial_velocity":-abs(float(self.w0_entry.get())),
                   "vertical_velocity_type": self.w0var.get(), "ffunction":self.ffunc_entry.get()}
+        
         if self.mdecayvar.get() == "mass":
             self.obj = mcd.CarbonDrift(**params)
         else:
             self.obj = acd.CarbonDrift(**params)
+        
         if not self.ADVECTION.get():
             self.obj.deactivate_horizontal_advection()
+        
         if not self.FRAGMENTATION.get():
             self.obj.deactivate_fragmentation()
+        
         self.obj.add_reader(self.add_readers())
+        
         for key, val in self.add_configures().items():
             self.obj.set_config(key, val)
+        
         if hasattr(self.sdata, "origin_marker"):
             origin_marker = self.sdata.origin_marker
-        if hasattr(self.sdata, "biome"):
+        elif hasattr(self.sdata, "biome"):
             origin_marker = self.sdata.biome
         else:
             origin_marker = 0
         
         self.obj.seed_elements(lon=self.sdata.lon, lat = self.sdata.lat, z=self.sdata.z,
-                                   mass = self.sdata.mass, time=self.valid_date(), origin_marker = origin_marker)
-        self.obj.run(time_step=timedelta(minutes=30), time_step_output=timedelta(hours=1), steps=500, outfile="home/peharicc/Documents/test.nc")
-        
-    def valid_date(self):
-        try:
-            return datetime.strptime(self.start_entry.get(), "%Y-%m-%d-%H")
-        except ValueError:
-            raise ValueError(f"not a valid date: {self.start_entry.get()!r}")
+                                   mass = self.sdata.mass, time=valid_date(self.start_entry.get()), origin_marker = origin_marker)
 
 if __name__ == "__main__":
     GUI = CarbonDriftGUI()
