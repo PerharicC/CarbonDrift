@@ -1,3 +1,4 @@
+import tkinter.messagebox
 import tkinter.scrolledtext
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import threading
 import time
 import os
 import logging
+from PIL import Image, ImageTk
 
 from datetime import datetime, timedelta
 # from copy import copy
@@ -38,6 +40,15 @@ logger = log.LOGGER
 #[1.38098354e+14 1.28393513e+14 1.48102080e+14 6.55377619e+12]
 #[9.33143752e+13 6.07586780e+13 7.50577591e+13 0.00000000e+00]
 #[5.78697234e+13 2.76558579e+13 4.26254227e+13 2.28242305e+13]
+
+
+class MissingDataError(Exception):
+    def __init__(self, msg="Please provide data."):
+        self.msg = msg
+        super().__init__(self.msg)
+
+    def __str__(self):
+        return f'{self.msg}'
 
 class LoggerHandler(logging.Handler):
     def __init__(self, text_widget):
@@ -92,6 +103,7 @@ class CarbonDriftGUI(tkinter.Tk):
         self.setup_simulation_run_frame()
         self.setup_plotting_frame()
 
+        self.seed_file_entry = ""
         self.SEEDCLICKED=False
         self.INITIALIZECLICKED = False
         
@@ -101,8 +113,15 @@ class CarbonDriftGUI(tkinter.Tk):
 
         self.thread = None
         self.sdata = None
+        self.tmp_entry=None
+        self.bmt_entry = None
+        self.opt_readers = []
+        self.obj = None
+        self.simout_entry = None
         self.plotfilesplus = []
         self.plotfilesminus = []
+        self.SIMDISPLAYMAXWIDTH = 800
+        self.SIMDISPLAYMAXHEIGHT = 800
 
         style.configure(
             "Success.Horizontal.TProgressbar",
@@ -118,16 +137,20 @@ class CarbonDriftGUI(tkinter.Tk):
     def setup_seed_frame(self):
         self.seed_from_file = tkinter.Frame(self.simseed, bg='lightgray', bd=2,
                             relief=tkinter.SUNKEN, pady=25, padx=25)
-        self.seed_from_file.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
+        self.seed_from_file.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="w")
         
-        seed_from_file_title = tkinter.Label(self.seed_from_file, text="Seed from pre-made file", 
+        seed_from_file_title = tkinter.Label(self.seed_from_file, text="Seed from existing file", 
                                              font=self.frame_subtitle_font).grid(row=0, pady=(0, 25), columnspan=2)
         
-        seed_file_label = tkinter.Label(self.seed_from_file, text="File Path:", font=self.frame_font).grid(row=1, column=0, sticky="w")
-        self.seed_file_entry = tkinter.Entry(self.seed_from_file)
-        self.seed_file_entry.insert(0, "/home/peharicc/Documents/masters/MassDecay/constant_density_sim/chordata_M_seed.pkl")
-        self.seed_file_entry.bind("<Key>", self.disable_new_seed)
-        self.seed_file_entry.grid(row=1, column=1, sticky="w")
+        self.seed_file_label = tkinter.Label(self.seed_from_file, text="Import seed:", font=self.frame_font)
+        self.seed_file_label.grid(row=1, column=0, sticky="w")
+        tkinter.Button(
+            self.seed_from_file, text = "Browse Files", command = self.browse_seed
+            ).grid(row = 1, column = 1, sticky="w", padx=10, pady=(0, 10))
+        self.remove_seed_button = tkinter.Button(
+            self.seed_from_file, text = "Remove Import", command = self.remove_seed, state="disabled",
+            )
+        self.remove_seed_button.grid(row = 1, column = 2, sticky="w", padx=10, pady=(0, 10))
 
 
         self.seed_new = tkinter.Frame(self.simseed, bg='lightgray', bd=2,
@@ -140,9 +163,6 @@ class CarbonDriftGUI(tkinter.Tk):
         relative_mass_button = tkinter.Checkbutton(self.seed_new, text="relative mass", command=self.on_check_relative_mass,
                                                             variable=self.RELATIVEMASS).grid(row=1, column=0, sticky="w")
         
-        self.SAVESEED = tkinter.BooleanVar()
-        save_seed_button = tkinter.Checkbutton(self.seed_new, text="save seed", command=self.on_check_save_seed,
-                                                            variable=self.SAVESEED).grid(row=1, column=1, sticky="w")
         lonmin_label = tkinter.Label(self.seed_new, text="lonmin", font=self.frame_font).grid(row=2, column=0)
         self.lonmin_entry = tkinter.Entry(self.seed_new)
         self.lonmin_entry.insert(0, "-180")
@@ -206,16 +226,14 @@ class CarbonDriftGUI(tkinter.Tk):
         self.biome_entry = tkinter.Entry(self.seed_new)
         self.biome_entry.insert(0, os.path.join(self.supplementary_data_dir, "biomegrid2.npy"))
         self.biome_entry.grid(row=5, column=5)
-
-        outfile_label = tkinter.Label(self.seed_new, text="outfile", font=self.frame_font).grid(row=6, column=0)
-        self.outfile_entry = tkinter.Entry(self.seed_new, state="disabled")
-        self.outfile_entry.grid(row=7, column=0)
         
 
         self.seed_start = tkinter.Frame(self.simseed, relief=tkinter.FLAT, pady=25, padx=25)
         self.seed_start.grid(row=2, column=0, rowspan=1)
         
         tkinter.Button(self.seed_start, text="SEED", bg='green', command=self.on_click_seed).grid(row=0)
+        self.reset_seed_button = tkinter.Button(self.seed_start, text="RESET", bg='yellow', command=self.on_click_reset_seed, state = "disabled")
+        self.reset_seed_button.grid(row=0, column=1)
 
     def setup_reader_frame(self):
         self.required_readers = tkinter.Frame(self.simreader, bg='lightgray', bd=2,
@@ -223,31 +241,35 @@ class CarbonDriftGUI(tkinter.Tk):
         self.required_readers.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
         
         req_readers_title = tkinter.Label(self.required_readers, text="Required Readers", 
-                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25))
+                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25), sticky="w")
         self.LANDMASK = tkinter.BooleanVar()
         self.LANDMASK.set(True)
         land_mask_button = tkinter.Checkbutton(self.required_readers, text = "OpenDrift LandMask",
-                                                            variable=self.LANDMASK  ).grid(row=1, column=0, sticky="w")
-        tmp_label = tkinter.Label(self.required_readers, text="Temperature:", font=self.frame_font).grid(row=2, column=0, sticky="w")
-        self.tmp_entry = tkinter.Entry(self.required_readers, width=100)
-        self.tmp_entry.insert(0, os.path.join(self.supplementary_data_dir, "tmp_luo.nc"))
-        self.tmp_entry.grid(row=2, column=1, sticky="we")
-
-        bmt_label = tkinter.Label(self.required_readers, text="Bathymetry:", font=self.frame_font).grid(row=3, column=0, sticky="w")
-        self.bmt_entry = tkinter.Entry(self.required_readers, width=100)
-        self.bmt_entry.insert(0, os.path.join(self.supplementary_data_dir, "etopo2.nc"))
-        self.bmt_entry.grid(row=3, column=1, sticky="we")
-
+                                                            variable=self.LANDMASK).grid(row=1, column=0, pady=(0,10), sticky="w")
+        
+        self.tmp_label = tkinter.Label(self.required_readers, text="Import temperature:", font=self.frame_font)
+        self.tmp_label.grid(row=2, column=0, padx=10, sticky="w")
+        tkinter.Button(
+            self.required_readers, text = "Browse Files", command = lambda:self.browse_required_readers("tmp")
+            ).grid(row = 3, column = 0, sticky="w", padx=10, pady=(0, 10))
+        
+        self.bmt_label = tkinter.Label(self.required_readers, text="Import bathymetry:", font=self.frame_font)
+        self.bmt_label.grid(row=2, column=1, padx=10, sticky="w")
+        tkinter.Button(
+            self.required_readers, text = "Browse Files", command = lambda:self.browse_required_readers("bmt")
+            ).grid(row = 3, column = 1, sticky="w", padx=10, pady=(0, 10))
 
         self.optional_readers = tkinter.Frame(self.simreader, bg='lightgray', bd=2,
                             relief=tkinter.SUNKEN, pady=25, padx=25)
         self.optional_readers.grid(row=1, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
         
         opt_readers_title = tkinter.Label(self.optional_readers, text="Optional Readers", 
-                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25), columnspan=2)
-        self.opt_reader_box = tkinter.Text(self.optional_readers)
-        self.opt_reader_box.grid(row=1, column=0)
-        self.opt_reader_box.insert(tkinter.END, "FORMAT:\nfilepath1\nfilepath2\n...")
+                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25), columnspan=2, sticky="w")
+        self.opt_label = tkinter.Label(self.optional_readers, text="Import other raeders:", font=self.frame_font)
+        self.opt_label.grid(row=1, column=0, sticky="w")
+        tkinter.Button(
+            self.optional_readers, text = "Browse Files", command = self.browse_optional_readers
+            ).grid(row = 2, column = 0, sticky="w", padx=10, pady=(0, 10))
         
     def setup_configure_frame(self):
         self.required_configs = tkinter.Frame(self.simconfigure, bg='lightgray', bd=2,
@@ -255,7 +277,8 @@ class CarbonDriftGUI(tkinter.Tk):
         self.required_configs.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
         
         req_configs_title = tkinter.Label(self.required_configs, text="Required Configures", 
-                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25))
+                                             font=self.frame_subtitle_font).grid(row=0, pady=(0, 25), sticky="w")
+        
         self.OCEANONLY = tkinter.BooleanVar()
         self.OCEANONLY.set(True)
         ocean_only_button = tkinter.Checkbutton(self.required_configs, text = "oceanonly (recommended on)",
@@ -265,12 +288,12 @@ class CarbonDriftGUI(tkinter.Tk):
         land_mask_button = tkinter.Checkbutton(self.required_configs, text = "auto landmask",
                                                             variable=self.AUTOLANDMASK).grid(row=1, column=1, sticky="w")
 
-        solver_label = tkinter.Label(self.required_configs, text="advection_scheme", font=self.frame_font).grid(row=2, column=0, sticky="w")
+        solver_label = tkinter.Label(self.required_configs, text="advection_scheme", font=self.frame_font).grid(row=1, column = 2, sticky="w", padx=(20, 0))
         self.solvervar = tkinter.StringVar()
         self.solver = ["runge-kutta", "runge-kutta4", "euler"]
         self.solvervar.set("runge-kutta")
         self.solver = tkinter.OptionMenu(self.required_configs, self.solvervar, *self.solver)
-        self.solver.grid(row=2, column=1)
+        self.solver.grid(row=2, column=2, pady=(10,0), padx=(20, 0), sticky="w")
 
 
         self.optional_configs = tkinter.Frame(self.simconfigure, bg='lightgray', bd=2,
@@ -288,78 +311,88 @@ class CarbonDriftGUI(tkinter.Tk):
                             relief=tkinter.SUNKEN, pady=25, padx=25)
         self.simulationparams.grid(row=0, column=0, rowspan=1, padx=20, pady=(20,0), sticky="we")
 
-        simtype_label = tkinter.Label(self.simulationparams, text="type", font=self.frame_font).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        simtype_label = tkinter.Label(self.simulationparams, text="type", font=self.frame_font).grid(row=0, column=0)
         self.typevar = tkinter.StringVar()
         self.type = ["normal", "grid"]
         self.typevar.set("normal")
         self.type = tkinter.OptionMenu(self.simulationparams, self.typevar, *self.type, command=self.on_check_sim_type)
-        self.type.grid(row=0, column=1, padx=10, pady=(0, 10))
+        self.type.grid(row=1, column=0, pady=(0, 20))
 
-        sf_label = tkinter.Label(self.simulationparams, text="split factor:", font=self.frame_font).grid(row=0, column=2, sticky="w", pady=(0, 10))
+        sf_label = tkinter.Label(self.simulationparams, text="split factor:", font=self.frame_font).grid(row=0, column=1)
         self.sf_entry = tkinter.Entry(self.simulationparams, state="disabled")
-        self.sf_entry.grid(row=0, column=3, sticky="w", padx=10, pady=(0, 10))
+        self.sf_entry.grid(row=1, column=1, pady=(0, 20))
 
         self.ADVECTION = tkinter.BooleanVar()
         advection_button = tkinter.Checkbutton(self.simulationparams, text = "horizontal advection",
-                                                            variable=self.ADVECTION).grid(row=0, column=4, sticky="w", padx=10, pady=(0, 10))
+                                                            variable=self.ADVECTION).grid(row=0, column=2, padx=10, sticky="w")
         
         self.FRAGMENTATION = tkinter.BooleanVar()
         fragmentation_button = tkinter.Checkbutton(self.simulationparams, text = "fragmentation", command=self.on_check_fragmentation,
-                                                            variable=self.FRAGMENTATION).grid(row=0, column=5, sticky="w", padx=10, pady=(0, 10))
+                                                            variable=self.FRAGMENTATION).grid(row=1, column=2, pady=(0, 20), sticky="w", padx=10)
 
-        start_label = tkinter.Label(self.simulationparams, text="start time:", font=self.frame_font).grid(row=1, column=0, sticky="w", pady=(0, 10))
+        fragfunc_label = tkinter.Label(self.simulationparams, text="fragmentation\nfunction:", font=self.frame_font).grid(row=0, column=3)
+        self.ffunc_entry = tkinter.Entry(self.simulationparams, state="disabled")
+        self.ffunc_entry.grid(row=1, column=3, pady=(0, 20))
+
+        start_label = tkinter.Label(self.simulationparams, text="start time:", font=self.frame_font).grid(row=2, column=0)
         self.start_entry = tkinter.Entry(self.simulationparams)
         self.start_entry.insert(0, "1993-01-01-0")#"YYYY-MM-DD-h"
-        self.start_entry.grid(row=1, column=1, sticky="w", padx=10, pady=(0, 10))
+        self.start_entry.grid(row=3, column=0, pady=(0, 20))
 
-        dt_label = tkinter.Label(self.simulationparams, text="time step:", font=self.frame_font).grid(row=1, column=2, sticky="w", pady=(0, 10))
+        dt_label = tkinter.Label(self.simulationparams, text="time step:", font=self.frame_font).grid(row=2, column=1)
         self.dt_entry = tkinter.Entry(self.simulationparams)
         self.dt_entry.insert(0, "0:30:0")#"h:m:s"
-        self.dt_entry.grid(row=1, column=3, sticky="w", padx=10, pady=(0, 10))
+        self.dt_entry.grid(row=3, column=1, pady=(0, 20))
 
-        dto_label = tkinter.Label(self.simulationparams, text="output time step:", font=self.frame_font).grid(row=1, column=4, sticky="w", pady=(0, 10))
+        dto_label = tkinter.Label(self.simulationparams, text="output time step:", font=self.frame_font).grid(row=2, column=2)
         self.dto_entry = tkinter.Entry(self.simulationparams)
         self.dto_entry.insert(0, "1:0:0")#"h:m:s"
-        self.dto_entry.grid(row=1, column=5, sticky="w", padx=10, pady=(0, 10))
+        self.dto_entry.grid(row=3, column=2, pady=(0, 20))
 
-        steps_label = tkinter.Label(self.simulationparams, text="steps:", font=self.frame_font).grid(row=1, column=6, sticky="w", pady=(0, 10))
+        steps_label = tkinter.Label(self.simulationparams, text="steps:", font=self.frame_font).grid(row=2, column=3)
         self.step_entry = tkinter.Entry(self.simulationparams)
         self.step_entry.insert(0, 500)
-        self.step_entry.grid(row=1, column=7, sticky="w", padx=10, pady=(0, 10))
+        self.step_entry.grid(row=3, column=3, pady=(0, 20))
 
-        w0_label = tkinter.Label(self.simulationparams, text="init vertical\n velocity:", font=self.frame_font).grid(row=2, column=0, sticky="w", pady=(0, 10))
+        w0_label = tkinter.Label(self.simulationparams, text="init vertical\n velocity:", font=self.frame_font).grid(row=4, column=0)
         self.w0_entry = tkinter.Entry(self.simulationparams)
         self.w0_entry.insert(0, -0.01)
-        self.w0_entry.grid(row=2, column=1, sticky="w", padx=10, pady=(0, 10))
+        self.w0_entry.grid(row=5, column=0, pady=(0, 20))
 
-        w0type_label = tkinter.Label(self.simulationparams, text="velocity type", font=self.frame_font).grid(row=2, column=2, sticky="w", pady=(0, 10))
+        w0type_label = tkinter.Label(self.simulationparams, text="velocity type", font=self.frame_font).grid(row=4, column=1)
         self.w0var = tkinter.StringVar()
         self.w0type = ["variable", "constant"]
         self.w0var.set("variable")
         self.w0type = tkinter.OptionMenu(self.simulationparams, self.w0var, *self.w0type)
-        self.w0type.grid(row=2, column=3, padx=10, pady=(0, 10))
+        self.w0type.grid(row=5, column=1, pady=(0, 20))
 
-        decaytype_label = tkinter.Label(self.simulationparams, text="decay rate", font=self.frame_font).grid(row=2, column=4, sticky="w", pady=(0, 10))
+        decaytype_label = tkinter.Label(self.simulationparams, text="decay rate", font=self.frame_font).grid(row=4, column=2)
         self.decayvar = tkinter.StringVar()
         self.decaytype = ["exp", "linear"]
         self.decayvar.set("exp")
         self.decaytype = tkinter.OptionMenu(self.simulationparams, self.decayvar, *self.decaytype)
-        self.decaytype.grid(row=2, column=5, padx=10, pady=(0, 10))
+        self.decaytype.grid(row=5, column=2, pady=(0, 20))
 
-        mdecaytype_label = tkinter.Label(self.simulationparams, text="decay", font=self.frame_font).grid(row=2, column=6, sticky="w", pady=(0, 10))
+        mdecaytype_label = tkinter.Label(self.simulationparams, text="decay", font=self.frame_font).grid(row=4, column=3)
         self.mdecayvar = tkinter.StringVar()
         self.mdecaytype = ["mass", "area"]
         self.mdecayvar.set("mass")
         self.mdecaytype = tkinter.OptionMenu(self.simulationparams, self.mdecayvar, *self.mdecaytype)
-        self.mdecaytype.grid(row=2, column=7, padx=10, pady=(0, 10))
+        self.mdecaytype.grid(row=5, column=3, pady=(0, 20))
+        
 
-        out_label = tkinter.Label(self.simulationparams, text="outfile:", font=self.frame_font).grid(row=3, column=0, sticky="w", pady=(0, 10))
-        self.simout_entry = tkinter.Entry(self.simulationparams)
-        self.simout_entry.insert(0, "/home/peharicc/Documents/test.nc")#"netCDF file"
-        self.simout_entry.grid(row=3, column=1, sticky="w", padx=10, pady=(0, 10))
+        output_frame_ev = tkinter.Frame(self.simulationparams, relief=tkinter.FLAT)
+        output_frame_ev.grid(row=6, column=0, rowspan=1, columnspan=2)
+        output_frame_of = tkinter.Frame(self.simulationparams, relief=tkinter.FLAT)
+        output_frame_of.grid(row=6, column=2, rowspan=1, columnspan=2)
 
-        ev_label = tkinter.Label(self.simulationparams, text="export\nvariables", font=self.frame_font).grid(row=3, column=2, sticky="w", pady=(0, 10))
-        self.ev_list = tkinter.Listbox(self.simulationparams, selectmode=tkinter.MULTIPLE, exportselection=False)
+        out_label = tkinter.Label(output_frame_of, text="outfile:", font=self.frame_font).grid(row=0, column=0)
+        tkinter.Button(
+            output_frame_of, text = "Select Location", command = self.save_simulation
+            ).grid(row=1, column=0, pady=(0, 20))
+
+        ev_label = tkinter.Label(output_frame_ev, text="export variables:", font=self.frame_font).grid(row=0, column=0)
+        self.ev_list = tkinter.Listbox(output_frame_ev, selectmode=tkinter.MULTIPLE, exportselection=False)
         valid_vars = ["trajectory", "time", "status", "moving", "age_seconds", "origin_marker",
                   "lon", "lat", "z", "wind_drift_factor", "current_drift_factor",
                   "terminal_velocity", "mass", "x_sea_water_velocity", "y_sea_water_velocity",
@@ -369,11 +402,7 @@ class CarbonDriftGUI(tkinter.Tk):
             self.ev_list.insert(i + 1, var)
             if var in self.current_ev_selection:
                 self.ev_list.selection_set(i)
-        self.ev_list.grid(row=3, column=3, sticky="w", padx=10, pady=(0, 10))
-
-        fragfunc_label = tkinter.Label(self.simulationparams, text="fragmentation\nfunction:", font=self.frame_font).grid(row=3, column=4, sticky="w", pady=(0, 10))
-        self.ffunc_entry = tkinter.Entry(self.simulationparams, state="disabled")
-        self.ffunc_entry.grid(row=3, column=5, sticky="w", padx=10, pady=(0, 10))
+        self.ev_list.grid(row=1, column=0, pady=(0, 20))
 
         self.make_object = tkinter.Frame(self.simtype, relief=tkinter.FLAT, pady=25, padx=25)
         self.make_object.grid(row=1, column=0, rowspan=1)
@@ -480,12 +509,6 @@ class CarbonDriftGUI(tkinter.Tk):
         self.viewbutton = tkinter.Button(self.plotparams, text="VIEW", bg='green', command=self.on_click_view_plot, state="disabled")
         self.viewbutton.grid(row=4, column = 1)
     
-    def on_check_save_seed(self):
-        if self.SAVESEED.get():
-            self.outfile_entry["state"] ="normal"
-        else:
-            self.outfile_entry["state"] ="disabled"
-    
     def on_check_relative_mass(self):
         if self.RELATIVEMASS.get():
             self.m0_entry["state"]="disabled"
@@ -505,12 +528,19 @@ class CarbonDriftGUI(tkinter.Tk):
             self.sf_entry["state"]="normal"
 
     def on_click_initialize(self):
-        self.INITIALIZECLICKED = True
-        self.update_idletasks()
-        if self.typevar.get() == "normal":
-            self.initialize_normal_run()
+        if self.SEEDCLICKED:
+            self.update_idletasks()
+            try:
+                if self.typevar.get() == "normal":
+                    self.initialize_normal_run()
+                else:
+                    self.initialize_grid_run()
+                self.INITIALIZECLICKED = True
+            except Exception as e:
+                self.launch_error_window(e)
+                self.reset_object_init()
         else:
-            self.initialize_grid_run()
+            self.launch_error_window(MissingDataError("Please seed data first."))
 
     def on_click_run(self):
         if not self.SEEDCLICKED:
@@ -521,7 +551,7 @@ class CarbonDriftGUI(tkinter.Tk):
             self.launch_error_window(self.error)
         else:
             run_params = {"time_step":valid_time_step(self.dt_entry.get()), "time_step_output":valid_time_step(self.dto_entry.get()),
-                        "steps":int(self.step_entry.get()), "outfile":self.simout_entry.get(),
+                        "steps":int(self.step_entry.get()), "outfile":self.simout_entry,
                         "export_variables":[self.ev_list.get(i) for i in self.ev_list.curselection()]}
             self.run_progress = ttk.Progressbar(
                 self.simulationlog, mode="determinate",
@@ -574,7 +604,88 @@ class CarbonDriftGUI(tkinter.Tk):
             self.viewbutton.config(state="normal")
     
     def on_click_view_plot(self):
-        pass
+        filepath = self.oplot_entry.get()
+        format = filepath[-4:]
+        if format[-4:] == ".gif":
+            func = self.view_ANIM
+        elif format in [".pdf", ".png", ".jpg"]:
+            if format == ".pdf":
+                try:
+                    from pdf2image import convert_from_path
+                except ImportError:
+                    raise ImportError("Format pdf cannot be imported.\
+                                       Please install pdf2image or convert the input to a different format.")
+            func = self.view_IMG
+        else:
+            raise TypeError(f"Format {format} is not supported in this GUI.")
+        self.launch_progress_window(f"Importing {filepath}")
+        self.thread = threading.Thread(target=func, daemon=True, args=[filepath])
+        self.thread.start()
+    
+    def view_ANIM(self, filepath):
+        info = Image.open(filepath)
+        frames = info.n_frames
+        images = []
+        size = self.get_display_geom(*info.size)
+        
+        for i in range(frames):
+            info.seek(i)
+            frame = info.copy().convert("RGBA")
+            frame = frame.resize(size, Image.LANCZOS)
+
+            tk_frame = ImageTk.PhotoImage(frame)
+            images.append(tk_frame)
+        display_window = tkinter.Toplevel(self)
+        display_window.title(filepath)
+        display_window.geometry(f"{size[0]}x{size[1]}")
+        gif_label = tkinter.Label(display_window, image="")
+        display_window.bind()
+        self.progress_window.destroy()
+        gif_label.pack()
+        self.run_animation(images, gif_label, display_window)
+    
+    def run_animation(self, images, gif_label, display_window, current_frame=0):
+        if not display_window.winfo_exists():
+            return
+        image = images[current_frame]
+
+        gif_label.configure(image = image)
+        current_frame = current_frame + 1
+
+        if current_frame == len(images):
+            current_frame = 0 # reset the current_frame to 0 when end is reached
+
+        self.after(50, lambda: self.run_animation(images, gif_label, display_window, current_frame))
+    
+    def view_IMG(self, filepath):
+        if filepath[-4:] == ".pdf":
+            from pdf2image import convert_from_path
+
+            image = convert_from_path(filepath)[0]
+            image = image.convert("RGB")
+        else:
+            image = Image.open(filepath)
+        size = self.get_display_geom(*image.size)
+        image.thumbnail(size)
+        image = ImageTk.PhotoImage(image)
+
+        display_window = tkinter.Toplevel(self)
+        display_window.title(filepath)
+        display_window.geometry(f"{size[0]}x{size[1]}")
+        image_label = tkinter.Label(display_window, image=image)
+        image_label.image = image
+        self.progress_window.destroy()
+        image_label.pack(pady=5)
+
+    def get_display_geom(self, width, height):
+        if width <= self.SIMDISPLAYMAXWIDTH and height <= self.SIMDISPLAYMAXHEIGHT:
+            return (width, height)
+        else:
+            if width > height:
+                scale = width/self.SIMDISPLAYMAXWIDTH
+            else:
+                scale = height / self.SIMDISPLAYMAXHEIGHT
+            return (round(width / scale), round(height / scale))
     
     def on_click_diff(self):
         if self.DIFF.get():
@@ -583,6 +694,54 @@ class CarbonDriftGUI(tkinter.Tk):
         else:
             self.simulation_label_minus.config(state = "disabled")
             self.simulation_explore_minus.config(state = "disabled")
+
+    def browse_seed(self):
+        filetypes = (
+            ('pickle files', '*.pkl'),
+            ('All files', '*.*')
+        )
+
+        filename = filedialog.askopenfilename(initialdir = os.getcwd(),
+                                          title = "Select a File",
+                                          filetypes = filetypes)
+        self.seed_file_entry = filename
+        self.set_frame_state(self.seed_new, "disabled")
+        self.seed_file_label.config(text=f"Imported from {filename}")
+        self.remove_seed_button.config(state = "normal")
+    
+    def remove_seed(self):
+        self.set_frame_state(self.seed_new, "normal")
+        self.seed_file_entry = ""
+        self.seed_file_label.config(text="Import seed:")
+        self.remove_seed_button.config(state="disabled")
+
+    def browse_required_readers(self, reader):
+        filetypes = (
+            ('netCDF files', '*.nc'),
+            ('All files', '*.*')
+        )
+
+        filename = filedialog.askopenfilename(initialdir = self.supplementary_data_dir,
+                                          title = "Select a File",
+                                          filetypes = filetypes)
+        if reader == "tmp":
+            self.tmp_entry = filename
+            self.tmp_label.config(text=f"Imported from {filename}")
+        else:
+            self.bmt_entry = filename
+            self.bmt_label.config(text=f"Imported from {filename}")
+
+    def browse_optional_readers(self):
+        filetypes = (
+            ('netCDF files', '*.nc'),
+            ('All files', '*.*')
+        )
+
+        filenames = filedialog.askopenfilenames(initialdir = os.getcwd(),
+                                          title = "Select files",
+                                          filetypes = filetypes)
+        self.opt_readers = filenames
+        self.opt_label.config(text = f"Imported {len(filenames)} from {os.path.dirname(filenames[0])}.")
 
     def browse_simulations(self, sign):
         filetypes = (
@@ -621,28 +780,18 @@ class CarbonDriftGUI(tkinter.Tk):
         for index in self.saved_ev_selection:
             self.ev_list.selection_set(index)
 
-
-    def disable_new_seed(self, event):
-        if len(self.seed_file_entry.get()) > 1:
-            self.set_frame_state(self.seed_from_file, "normal")
-            self.set_frame_state(self.seed_new, "disable")
-        else:
-            self.set_frame_state(self.seed_from_file, "normal")
-            self.set_frame_state(self.seed_new, "normal")
-
     def set_frame_state(self, frame, state):
         for widget in frame.winfo_children():
             widget.config(state=state)
         if frame==self.seed_new:
-            if state=="disable":
+            if state=="disabled":
                 pass
             else:
                 self.on_check_relative_mass()
-                self.on_check_save_seed()
     
     def launch_error_window(self, error):
         self.error_window = tkinter.Toplevel(self)
-        self.error_window.title(type(self.error).__name__)
+        self.error_window.title(type(error).__name__)
         self.error_window.geometry("250x100")
         self.error_label = tkinter.Label(self.error_window, text=error)
         self.error_label.pack(pady=5)
@@ -659,30 +808,61 @@ class CarbonDriftGUI(tkinter.Tk):
         self.progress.start(10)
 
     def on_click_seed(self):
-        self.SEEDCLICKED = True
         self.update_idletasks()
         self.launch_progress_window("Seeding")
         self.thread = threading.Thread(target=self.seed, daemon=True)
         self.thread.start()
-        self.after(100, self.check_thread_finished)
+        self.after(100, self.check_seed_progress)
     
-    def check_thread_finished(self):
+    def check_seed_progress(self):
         if self.thread.is_alive():
-            self.after(100, self.check_thread_finished)    
+            self.after(100, self.check_seed_progress)
+        else:
+            if type(self.sdata) == Seed:
+                save = tkinter.messagebox.askyesno("Save seed?", "Would you like to save the seed for future use?")
+                if save:
+                    self.save_seed()
+            self.freeze_seed_frame()
+    
+    def on_click_reset_seed(self):
+        self.SEEDCLICKED = False
+        self.sdata = None
+        self.seed_file_entry=""
+        self.seed_file_label.config(text="Import seed:")
+        self.set_frame_state(self.seed_new, "normal")
+        self.set_frame_state(self.seed_from_file, "normal")
+        self.reset_seed_button.config(state="disabled")
+
+    def freeze_seed_frame(self):
+        self.SEEDCLICKED = True
+        self.set_frame_state(self.seed_new, "disabled")
+        self.set_frame_state(self.seed_from_file, "disabled")
+        self.reset_seed_button.config(state = "normal")
+
+    def save_seed(self):
+        filetypes = (
+            ('pickle files', '*.pkl'),
+            ('All files', '*.*')
+        )
+
+        file = filedialog.asksaveasfile(initialdir = os.getcwd(),
+                                          title = "Select a location",
+                                          filetypes = filetypes, defaultextension = filetypes)
+        
+        if file is None: return
+        try:
+            self.sdata.save_seed(file.name)
+        except Exception as e:
+            self.launch_error_window(e)
     
     def seed(self):
-        if self.lonmin_entry["state"] == "disabled":
-            entry = self.seed_file_entry.get()
-            if len(entry)==0:
-                self.error = ValueError("File path is empty.")
-                self.progress_window.destroy()
+        entry = self.seed_file_entry
+        if len(entry) > 0:
+            try:
+                self.sdata = SeedFromFile(entry)
+            except FileNotFoundError:
+                self.error = FileNotFoundError(f"File {entry} does not exist.")
                 self.launch_error_window(self.error)
-            else:
-                try:
-                    self.sdata = SeedFromFile(entry)
-                except FileNotFoundError:
-                    self.error = FileNotFoundError(f"File {entry} does not exist.")
-                    self.launch_error_window(self.error)
         else:
             latmin = self.latmin_entry.get()
             lonmin = self.lonmin_entry.get()
@@ -696,7 +876,6 @@ class CarbonDriftGUI(tkinter.Tk):
             biome = self.biome_entry.get()
             poctype = self.pocvar.get()
             phylum = self.phylavar.get()
-            outfile = None if self.outfile_entry.get()=="" else self.outfile_entry.get()
             data = {"latmin":latmin, "lonmin":lonmin, "lonmax":lonmax, "latmax":latmax, "dx":dx, "dy":dy,
                     "bathymetry":b, "area":area, "initial_mass":m0, "biome":biome}
             for item_name, item in data.items():
@@ -717,7 +896,7 @@ class CarbonDriftGUI(tkinter.Tk):
             try:
                 self.sdata = Seed(latmin=data["latmin"], latmax=data["latmax"], lonmin=data["lonmin"], lonmax=data["lonmax"],
                                   dx=data["dx"], dy=data["dy"], bathymetrypath=data["bathymetry"], poctype=poctype, phylum=phylum,
-                                  areapath=data["area"], biomegridpath=data["biome"], initialmassdata=data["initial_mass"],outfile=outfile)
+                                  areapath=data["area"], biomegridpath=data["biome"], initialmassdata=data["initial_mass"])
             except Exception as e:
                 self.launch_error_window(e)
 
@@ -725,19 +904,21 @@ class CarbonDriftGUI(tkinter.Tk):
 
     def add_readers(self):
         readers = []
-        bat = reader_netCDF_CF_generic.Reader(self.bmt_entry.get(), standard_name_mapping={"topo":"depth"})
+        if self.bmt_entry is None:
+            raise MissingDataError("Bathymetry reader must be provided.")
+        bat = reader_netCDF_CF_generic.Reader(self.bmt_entry, standard_name_mapping={"topo":"depth"})
         readers.append(bat)
-        tmp = reader_netCDF_CF_generic.Reader(self.tmp_entry.get())
+        if self.tmp_entry is None:
+            raise MissingDataError("Temperature reader must be provided.")
+        tmp = reader_netCDF_CF_generic.Reader(self.tmp_entry)
         tmp.verticalbuffer = 100
         tmp.always_valid = True
         readers.append(tmp)
         if self.LANDMASK.get() and not self.AUTOLANDMASK.get():
             readers.append(reader_global_landmask.Reader())
-        opt_readers = self.opt_reader_box.get("1.0",'end-1c').split("\n")
-        if "FORMAT" not in opt_readers[0]:
-            for reader in opt_readers:
-                rd = reader_netCDF_CF_generic.Reader(reader)
-                readers.append(rd)
+        opt_readers = self.opt_readers
+        for reader in opt_readers:
+            readers.append(reader_netCDF_CF_generic.Reader(reader))
         return readers
 
     def add_configures(self):
@@ -781,6 +962,25 @@ class CarbonDriftGUI(tkinter.Tk):
         
         self.obj.seed_elements(lon=self.sdata.lon, lat = self.sdata.lat, z=self.sdata.z,
                                    mass = self.sdata.mass, time=valid_date(self.start_entry.get()), origin_marker = origin_marker)
+    
+    def reset_object_init(self):
+        self.obj = None
+    
+    def save_simulation(self):
+        filetypes = (
+            ('netCDF files', '*.nc'),
+            ('All files', '*.*')
+        )
+
+        file = filedialog.asksaveasfile(initialdir = os.getcwd(),
+                                          title = "Select a location",
+                                          filetypes = filetypes, defaultextension = filetypes)
+        
+        if file is None: 
+            self.simout_entry = None
+        else:
+            self.simout_entry = file.name
+            os.remove(file.name)
 
 if __name__ == "__main__":
     GUI = CarbonDriftGUI()
