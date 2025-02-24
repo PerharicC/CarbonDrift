@@ -12,6 +12,7 @@ from cartopy import config
 import cartopy.crs as ccrs
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
+import carbondrift
 from carbondrift.models.massdecay.carbondrift import *
 from carbondrift.models.logger import Logger
 
@@ -96,8 +97,8 @@ class Plot:
                  outfile = None, shrink = 1, clip = None, locations = None, bins = None,
                  prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
-                 legend = None, areagridpath = f"./supplementary_data/area_grid.npy",
-                 biomegridpath = f"./supplementary_data/biomegrid2.npy", group = None,
+                 legend = None, areagridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/area_grid.npy",
+                 biomegridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/biomegrid2.npy", group = None,
                  mhwintesitypath = None, dpi = 300):
         """
         Parameters
@@ -1235,7 +1236,7 @@ class Plot:
             NODATA = self.find_grid_cells_with_no_data(self.obj1)
             flux1[np.isnan(NODATA)] = np.nan
         logger.debug("Start plotting")
-        ax.coastlines(zorder = 3, resolution='10m')
+        ax.coastlines(zorder = 3, resolution='110m')
 
         extend = 'both' if self.clip else None
 
