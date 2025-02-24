@@ -15,6 +15,7 @@ setup(name="carbondrift",
           "console_scripts": [
               "run_simulation=carbondrift.simulation.run:main",
               "plot_simulation=carbondrift.plotting.plot_run:main",
+              "CD_gui=carbondrift.gui:main"
           ]
       }
       )

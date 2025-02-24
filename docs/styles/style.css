@@ -235,6 +235,16 @@ ul.expandable {
     list-style: url("../assets/svgs/dash-square.svg");
 }
 
+ol {
+    list-style:decimal;
+}
+
+.release-version-num {
+    color: blue;
+    font-weight: bold;
+    
+}
+
 .method-content {
     display: none;
 }

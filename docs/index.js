@@ -55,6 +55,9 @@ function getPage() {
         case "Custom Simulation":
             newId = "btn-custom-simulation";
             break;
+        case "GUI":
+            newId = "btn-gui";
+            break;
         case "Blueprint":
             newId = "btn-blueprint";
             break;
