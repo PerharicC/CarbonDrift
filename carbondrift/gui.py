@@ -340,12 +340,10 @@ class CarbonDriftGUI(tkinter.Tk):
 
         steps_label = tkinter.Label(self.simulationparams, text="steps:", font=self.frame_font).grid(row=2, column=3)
         self.step_entry = tkinter.Entry(self.simulationparams)
-        self.step_entry.insert(0, 500)
         self.step_entry.grid(row=3, column=3, pady=(0, 20))
 
         w0_label = tkinter.Label(self.simulationparams, text="init vertical\n velocity:", font=self.frame_font).grid(row=4, column=0)
         self.w0_entry = tkinter.Entry(self.simulationparams)
-        self.w0_entry.insert(0, -0.01)
         self.w0_entry.grid(row=5, column=0, pady=(0, 20))
 
         w0type_label = tkinter.Label(self.simulationparams, text="velocity type", font=self.frame_font).grid(row=4, column=1)
@@ -847,9 +845,13 @@ class CarbonDriftGUI(tkinter.Tk):
         self.error_label.pack(pady=5)
     
     def launch_progress_window(self, title):
+        width = 250
+        height = 100
+        center_width = int(self.winfo_width() / 2 - width / 2 + self.winfo_x())
+        center_height = int(self.winfo_height() / 2 - height / 2 + self.winfo_y())
         self.progress_window = tkinter.Toplevel(self)
         self.progress_window.title("Progress")
-        self.progress_window.geometry("250x100")
+        self.progress_window.geometry(f"{width}x{height}+{center_width}+{center_height}")
         self.progress_window.resizable(False, False)
         self.progress_label = tkinter.Label(self.progress_window, text=title)
         self.progress_label.pack(pady=5)
@@ -860,10 +862,16 @@ class CarbonDriftGUI(tkinter.Tk):
     def on_click_seed(self):
         self.update_idletasks()
         self.launch_progress_window("Seeding")
+        self.progress_window.protocol("WM_DELETE_WINDOW", self.on_close_seed_progress)
         self.thread = threading.Thread(target=self.seed, daemon=True)
         self.thread.start()
         self.after(100, self.check_seed_progress)
     
+    def on_close_seed_progress(self):
+        # self.progress_window.quit()
+        self.progress_window.destroy()
+        self.on_click_reset_seed()
+
     def check_seed_progress(self):
         if self.thread.is_alive():
             self.after(100, self.check_seed_progress)
@@ -882,6 +890,7 @@ class CarbonDriftGUI(tkinter.Tk):
         self.set_frame_state(self.seed_new, "normal")
         self.set_frame_state(self.seed_from_file, "normal")
         self.reset_seed_button.config(state="disabled")
+        self.remove_seed_button.config(state="disabled")
 
     def freeze_seed_frame(self):
         self.SEEDCLICKED = True
