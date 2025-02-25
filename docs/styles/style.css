@@ -429,5 +429,17 @@ background-color: #EEE0C9;
     transform: translateY(4px);
   }
 
+.gui-image-container {
+width: 100%;
+display: flex;
+justify-content: center;
+margin: 3% 0%;
+}
 
+.gui-image-container > img {
+    width: 70%;
+    border: 2px solid #ADC4CE;
+    border-radius: 3%;
+    background-color: #ADC4CE
+    }
 /* 96B6C5  ADC4CE  EEE0C9  F1F0E8*/

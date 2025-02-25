@@ -5,6 +5,7 @@
     <title>GUI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.css" rel="stylesheet">
     <link href="./styles/style.css" rel="stylesheet">
 </head>
 <body>
@@ -17,80 +18,103 @@
         <div class="navbar col-2"></div>
         
     <div class = "content">
-        <div class="col-12 col-md-9 offset-md-3" id = "custom-simulation">
-            <h1>Run Simulation From Script</h1>
+        <div class="col-12 col-md-9 offset-md-3" id = "gui-simulation">
+            <h1>CarbonDrift GUI Manual</h1>
             <hr>
             <p>
-                If the user requires <span class="bold">more control</span> over the simulation, 
-                he/she can make a custom python script, just like for any other opendrift simulation.
+                An even simpler way to run and visualize a CarbonDrift simulation is to use the graphical user interface.
+                However, this is harder to debug, if an error was to occur.
             </p>
             <p>
-                Start by importing all required dependencies.
-                <pre><code class="language-python">
-                    import numpy as np
-                    from opendrift.readers import reader_netCDF_CF_generic
-                    from opendrift.readers import reader_global_landmask
-                    from datetime import datetime, timedelta
-                    from netCDF4 import Dataset
-                    from carbondrift.models.areadecay import carbondrift
-                </code></pre>
+                To start the gui, simply run the following command in the terminal
             </p>
+            <pre class="command-line p-1" data-user="user" data-host="~/CarbonDrift">
+                <code class="language-bash">CD_gui</code></pre>
             <p>
-                Setup readers, configures and initial conditions.
-                <pre><code class="language-python">
-                    #Import readers
-                    btm = reader_netCDF_CF_generic.Reader("./supplementary_data/etopo2.nc",
-                                                            standard_name_mapping={"topo":"depth"})
-                    tmp = reader_netCDF_CF_generic.Reader("./supplementary_data/tmp_luo.nc")
-                    lm = reader_global_landmask.Reader()
-
-                    #Increase buffer, since vertical speeds are large!
-                    tmp.verticalbuffer = 100
-                    tmp.always_valid = True
-
-                    #Define start time
-                    time = datetime(year=1993, month = 1, day = 1)
-
-                    #Set up configures
-                    config = {'drift:advection_scheme':"runge-kutta",
-                                'general:use_auto_landmask': False, 'seed:ocean_only':False}
-                    
-                    #Initial mass and vertical velocity
-                    mass =  np.ones(2)
-                    w0 = -0.009259
-
-                    outfile = "outNetCDFFilePath"
-                </code></pre>
+                A gui window should open:
             </p>
+            <div class="gui-image-container">
+                <img src="assets/images/gui/first.png" />
+            </div>
+
+            <section id="gui-prepare-run">
+                
+                <h2>Preparing a Simulation</h2>
+                
+                <p>
+                    To run a simulation we must first provide the required data and specify some parameters. We do this as follows
+                </p>
+                <ol>
+                    <li>
+                        Import the seeding information. We can achieve this by either
+                    </li>
+                    <ol>
+                        <li>
+                            Importing the data from a pickle file (see <a href="simulation1.html#seeding">seeding</a>)
+                        </li>
+                        <li>
+                            Creating a new seed with a uniform initial carbon flux over each biome
+
+                        </li>
+                    </ol>
+                </ol>
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/newseed.gif" />
+                </div>
+                <ol start="2">
+                    <li>
+                        Import required and optional readers
+                    </li>
+                </ol>
+                <div class="gui-image-container">
+
+                </div>
+
+                <ol start="3">
+                    <li>
+                        Define configures
+                    </li>
+                </ol>
+                
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/config.gif" />
+                </div>
+                
+                <ol start="4">
+                    <li>
+                        Specify simulation parameters
+                    </li>
+                </ol>
+            </section>
             
-            <p>
-                Initialize and configure CarbonDrift object.
-                <pre><code class="language-python">
-                    o = carbondrift.CarbonDrift(loglevel = 0, initial_velocity = w0, 
-                                                m0 = mass, decay_type = "linear")
-                    
-                    #Deactivate horizontal advection and fragmentation
-                    o.deactivate_horizontal_advection()
-                    o.deactivate_fragmentation()
-                    
-                    #Set readers and configures
-                    o.add_reader([btm, tmp, lm])
-                    for key, value in config.items():
-                        o.set_config(key, value)
-                </code></pre>
-            </p>
             
-            <p>
-                Seed and run simulation.
-                <pre><code class="language-python">
-                    o.seed_elements(lon = [146, -45], lat = [58, 30], 
-                                    time = time, mass = mass, z = -50)
+            <section id="gui-running">
+                <h2>Running a Simulation</h2>
+                
+                <p>
+                    If the initialization was successful, the simulation can be started by navigating to the Run Simulation tab and clicking RUN.
+                    The simulation output log will update within the window and a progress bar will appear.
+                </p>
 
-                    o.run(outfile=outfile, steps = 5, time_step=timedelta(minutes = 30),
-                            time_step_output=timedelta(hours = 2))
-                </code></pre>
-            </p>
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/run.gif" />
+                </div>
+            </section>
 
+            <section id="gui-plotting">
+                <h2>Plotting a Simulation</h2>
+
+                <p>
+                    Once the simulation is complete we can visualize it by navigating to the Plot Simulation tab.
+                    Alternatively, we could have also skipped the previous steps and started plotting immediately, if the simulation had alread been made
+                    and saved.
+                </p>
+                
+                <p>
+                    We start by specify the method of visualization. For output examples and different parameter explanations refer to <a href="gallery.html">examples</a>
+                    and <a href="apiparameterlist.html">parameter list</a>.
+                </p>
+            </section>
         </div>
         <div class="footer col-12 col-md-9 offset-md-3"></div>
     </div>
@@ -100,6 +124,7 @@
     <script src="index.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.17.1/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>
