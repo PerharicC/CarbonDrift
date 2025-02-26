@@ -746,7 +746,7 @@ class CarbonDriftGUI(tkinter.Tk):
             ('All files', '*.*')
         )
 
-        filename = filedialog.askopenfilename(initialdir = os.getcwd(),
+        filename = filedialog.askopenfilename(initialdir = self.supplementary_data_dir,
                                           title = "Select a File",
                                           filetypes = filetypes)
         self.seed_file_entry = filename
