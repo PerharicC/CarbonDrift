@@ -31,7 +31,7 @@
             <pre class="command-line p-1" data-user="user" data-host="~/CarbonDrift">
                 <code class="language-bash">CD_gui</code></pre>
             <p>
-                A gui window should open:
+                A gui window will open:
             </p>
             <div class="gui-image-container">
                 <img src="assets/images/gui/first.png" />
@@ -42,7 +42,7 @@
                 <h2>Preparing a Simulation</h2>
                 
                 <p>
-                    To run a simulation we must first provide the required data and specify some parameters. We do this as follows
+                    To run a simulation we must first provide the required data and specify some parameters. We do this as follows:
                 </p>
                 <ol>
                     <li>
@@ -50,29 +50,45 @@
                     </li>
                     <ol>
                         <li>
-                            Importing the data from a pickle file (see <a href="simulation1.html#seeding">seeding</a>)
-                        </li>
-                        <li>
-                            Creating a new seed with a uniform initial carbon flux over each biome
-
+                            Importing the data from a pickle file (see <a href="simulation1.html#seeding">seeding</a>). Click on the
+                            <span class="italic">browse files</span> button in the
+                            <span class="italic">Seed from existing file</span> section, locate the file, open it and
+                            click <span class="italic">SEED</span>.
                         </li>
                     </ol>
                 </ol>
                 <div class="gui-image-container">
-                    <img src="assets/images/gui/newseed.gif" />
+                    <img src="assets/images/gui/seed_old.gif" />
+                </div>
+                <ol>
+                    <ol start="2">
+                        <li>
+                            Creating a new seed with a uniform initial carbon flux over each biome. Specify the domain, phlyum, and type of sinking material.
+                            Here, <span class="italic">M</span> stands for caracasses whereas <span class="italic">Eg</span> is egestion.
+                            The other fields, which specify paths to certain data files, can be left as defaults,
+                            unless one wishes to use his own specific data files.
+                        </li>
+                    </ol>
+                </ol>
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/seed_new.gif" />
                 </div>
                 <ol start="2">
                     <li>
-                        Import required and optional readers
+                        Import required and optional readers. The required readers include a temperature field and a bathymetry field.
+                        The current velocity field, for example is an optional reader.
                     </li>
                 </ol>
-                <div class="gui-image-container">
 
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/reader.gif">
                 </div>
 
                 <ol start="3">
                     <li>
-                        Define configures
+                        Define configures for the OceanDrift module (see <a href="https://opendrift.github.io/tutorial.html#configuration">OceanDrift config</a>).
+                        The example bellow shows a configuration in which the <span class="italic">x sea water velocity fallback</span> value is set to 1,
+                        which will result in a constant eastward drift, if no velocity field reader is provided.
                     </li>
                 </ol>
                 
@@ -82,9 +98,22 @@
                 
                 <ol start="4">
                     <li>
-                        Specify simulation parameters
+                        Specify simulation parameters. First select the <span class="italic">simulation type</span>. If you choose <span class="italic">grid</span>,
+                        you must also specify the <span class="italic">split factor</span>. Next, if you would like to activate
+                        <span class="italic">horizontal advection</span> and <span class="italic">fragmentation</span> tick the checkboxes. If fragmentation
+                        is selected, provide the <span class="italic">fragmentation condition</span> (see <a href="simulation1.html#fragmentation">fragmentation</a>).
+                        Next specify the <span class="italic">start time</span>, <span class="italic">time step</span>, <span class="italic">output time step</span>
+                        and <span class="italic">number of simulation steps</span>. Choose a model type, by selecting a constant or variable
+                        <span class="italic">sinking velocity</span>, exponential or linear <span class="italic">decay rate</span> and mass-dependent or
+                        area-dependent <span class="italic">decay</span>. Finally, specify the <span class="italic">initial value for the sinking velocity</span> in m/s, select
+                        the variables, which will be stored to an output file and select the <span class="italic">output file location</span>. Click on the
+                        <span class="italic">INITIALIZE</span> button.
                     </li>
                 </ol>
+
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/init.gif" />
+                </div>
             </section>
             
             
@@ -92,8 +121,9 @@
                 <h2>Running a Simulation</h2>
                 
                 <p>
-                    If the initialization was successful, the simulation can be started by navigating to the Run Simulation tab and clicking RUN.
-                    The simulation output log will update within the window and a progress bar will appear.
+                    If the initialization was successful, the simulation can be started by navigating to the <span class="italic">Run Simulation</span> tab
+                    and clicking <span class="italic">RUN</span>. The simulation <span class="italic">output log</span> will update within the window and
+                    a progress bar will appear.
                 </p>
 
                 <div class="gui-image-container">
@@ -105,14 +135,20 @@
                 <h2>Plotting a Simulation</h2>
 
                 <p>
-                    Once the simulation is complete we can visualize it by navigating to the Plot Simulation tab.
-                    Alternatively, we could have also skipped the previous steps and started plotting immediately, if the simulation had alread been made
+                    Once the simulation is complete, we can visualize it by navigating to the <span class="italic">Plot Simulation</span> tab.
+                    Alternatively, we could have also skipped the previous steps and started plotting immediately, if the simulation had already been made
                     and saved.
                 </p>
-                
+
+                <div class="gui-image-container">
+                    <img src="assets/images/gui/plot.png">
+                </div>
+
                 <p>
-                    We start by specify the method of visualization. For output examples and different parameter explanations refer to <a href="gallery.html">examples</a>
-                    and <a href="apiparameterlist.html">parameter list</a>.
+                    First, select the <span class="italic">method</span> of visualization. For output examples and different parameter explanations
+                    refer to <a href="gallery.html">examples</a> and <a href="apiparameterlist.html">parameter list</a>. If the
+                    <span class="italic">diff</span> checkbox is ticked, upload the simulations, which should be subtracted from the other simulations,
+                    by importing them via the <span class="italic">upload simulations with minus sign</span> button.
                 </p>
             </section>
         </div>

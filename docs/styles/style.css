@@ -438,8 +438,12 @@ margin: 3% 0%;
 
 .gui-image-container > img {
     width: 70%;
-    border: 2px solid #ADC4CE;
+    box-shadow: 0px 0px 10px 5px #ADC4CE;
     border-radius: 3%;
     background-color: #ADC4CE
     }
+
+.italic {
+    font-style: italic;
+}
 /* 96B6C5  ADC4CE  EEE0C9  F1F0E8*/
