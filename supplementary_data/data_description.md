@@ -4,7 +4,7 @@ Below we give a short description of the contents in this directory, together wi
 
 ## Luo_M_Eg_biome_data.json
 
-A `JSON` file containing the **total GZ carbon content** that is ready for vertical export per each biome. The values are taken from Ref. [[1]()].
+A `JSON` file containing the **total GZ carbon content** that is ready for vertical export per each biome. The values are taken from Ref. [[1](#references)].
 
 ```json
 {
@@ -58,7 +58,7 @@ A `JSON` file containing the **total GZ carbon content** that is ready for verti
 
 ## area_grid.npy
 
-`NUMPY` file containing an array of shape (180, 360) and data type `float64`, which contains the calculated **ocean area** values in each grid cell. The values were obtained with the `PYPROJ` [[2]()] and `SHAPELY` [[3]()] libraries.
+`NUMPY` file containing an array of shape (180, 360) and data type `float64`, which contains the calculated **ocean area** values in each grid cell. The values were obtained with the `PYPROJ` [[2](#references)] and `SHAPELY` [[3](#references)] libraries.
 
 ## biomegrid2.npy
 
@@ -72,7 +72,7 @@ A `JSON` file containing the **total GZ carbon content** that is ready for verti
     "COAST": 3
 }
 ```
-Nan values represent grid cells, where no data was available. Biomes were computed from Refs. [[1](), [4]() - [6]()].
+Nan values represent grid cells, where no data was available. Biomes were computed from Refs. [[1](#references), [4](#references) - [6](#references)].
 
 ## cnidaria_M_seed.pkl
 
@@ -89,7 +89,7 @@ Nan values represent grid cells, where no data was available. Biomes were comput
 
 ## etopo2.nc, tmp_luo.nc
 
-`NETCDF` files containing **bathymetry** and **ocean temperature** fields, respectively. The datasets were obtained from Refs. [[4](), [7]()]. The files were remapped to a $1^\circ \times 1^\circ$ grid resolution using climate data operators [[8]()].
+`NETCDF` files containing **bathymetry** and **ocean temperature** fields, respectively. The datasets were obtained from Refs. [[4](#references), [7](#references)]. The files were remapped to a $1^\circ \times 1^\circ$ grid resolution using climate data operators [[8](#references)].
 
 ## References
 
