@@ -98,7 +98,7 @@ class Plot:
                  prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/area_grid.npy",
-                 biomegridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/biomegrid2.npy", group = None,
+                 biomegridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/biomegrid.npy", group = None,
                  mhwintesitypath = None, dpi = 300):
         """
         Parameters
@@ -169,7 +169,7 @@ class Plot:
         areagridpath: str
             Path to npy file containg area of each 1 by 1 grid cell (default f"./supplementary_data/area_grid.npy")
         biomegridpath: str
-            Path to npy file containing biome int labels for each 1 by 1 grid cell (default f"./supplementary_data/biomegrid2.npy")
+            Path to npy file containing biome int labels for each 1 by 1 grid cell (default f"./supplementary_data/biomegrid.npy")
         group: str or None
             Grouping of tracers. Choose between biome, lonmean, latmean or none (default None)
         mhwintensitypath: TODO EXPLAIN

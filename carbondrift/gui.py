@@ -213,7 +213,7 @@ class CarbonDriftGUI(tkinter.Tk):
 
         biome_label = tkinter.Label(self.seed_new, text="biome", font=self.frame_font).grid(row=4, column=5)
         self.biome_entry = tkinter.Entry(self.seed_new)
-        self.biome_entry.insert(0, os.path.join(self.supplementary_data_dir, "biomegrid2.npy"))
+        self.biome_entry.insert(0, os.path.join(self.supplementary_data_dir, "biomegrid.npy"))
         self.biome_entry.grid(row=5, column=5)
         
 
