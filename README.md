@@ -9,4 +9,4 @@ This model was started as a summer-research project at the Slovenian Environment
 We hope it may help future GZ modeling researchers, who are perhaps not as familiar in computer programing and will benefit greatly from the easy to use CarbonDrift module.
 
 ## Documentation
-The documentation is available online at ***** and in the local folder docs, which can be accessed with a local live server.
+The documentation is available online at [the website](https://perharicc.github.io/CarbonDrift/index.html) and in the local folder docs, which can be accessed with a local live server.
