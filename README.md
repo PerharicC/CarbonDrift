@@ -10,3 +10,8 @@ We hope it may help future GZ modeling researchers, who are perhaps not as famil
 
 ## Documentation
 The documentation is available online at [the website](https://perharicc.github.io/CarbonDrift/index.html) and in the local folder docs, which can be accessed with a local live server.
+
+## Licensing and citation
+The code is licensed under Creative Commons Attribution 4.0 International license (see [License](https://creativecommons.org/licenses/by/4.0/legalcode.txt)).
+
+It is a part of the research paper: FILL ION, and should be cited appropriately. 
