@@ -8,7 +8,6 @@ import carbondrift
 
 curdir = os.getcwd()
 
-os.chdir("/home/peharicc/CarbonDrift")
 sup_dir = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data"
 exmpl_dir = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/examples/recreate_global_GZ_carbon_simulations"
 script = "run_simulation"
