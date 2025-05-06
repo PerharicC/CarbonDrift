@@ -198,7 +198,7 @@ class CarbonDriftGUI(tkinter.Tk):
 
         bathymetry_label = tkinter.Label(self.seed_new, text="bathymetry", font=self.frame_font).grid(row=4, column=2)
         self.bathymetry_entry = tkinter.Entry(self.seed_new)
-        self.bathymetry_entry.insert(0, os.path.join(self.supplementary_data_dir, "etopo2.nc"))
+        self.bathymetry_entry.insert(0, os.path.join(self.supplementary_data_dir, "etopo2_remaped1deg.nc"))
         self.bathymetry_entry.grid(row=5, column=2)
 
         m0_label = tkinter.Label(self.seed_new, text="initial mass", font=self.frame_font).grid(row=4, column=3)
@@ -213,7 +213,7 @@ class CarbonDriftGUI(tkinter.Tk):
 
         biome_label = tkinter.Label(self.seed_new, text="biome", font=self.frame_font).grid(row=4, column=5)
         self.biome_entry = tkinter.Entry(self.seed_new)
-        self.biome_entry.insert(0, os.path.join(self.supplementary_data_dir, "biomegrid.npy"))
+        self.biome_entry.insert(0, os.path.join(self.supplementary_data_dir, "biome_grid.npy"))
         self.biome_entry.grid(row=5, column=5)
         
 

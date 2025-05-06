@@ -60,7 +60,7 @@ A `JSON` file containing the **total GZ carbon content** that is ready for verti
 
 `NUMPY` file containing an array of shape (180, 360) and data type `float64`, which contains the calculated **ocean area** values in each grid cell. The values were obtained with the `PYPROJ` [[2](#references)] and `SHAPELY` [[3](#references)] libraries.
 
-## biomegrid2.npy
+## biome_grid.npy
 
 `NUMPY` file containing an array of shape (180, 360) and data type `float64`, which contains **biome IDs** of each grid cell. The IDs correspond to the following biomes:
 
@@ -74,9 +74,9 @@ A `JSON` file containing the **total GZ carbon content** that is ready for verti
 ```
 Nan values represent grid cells, where no data was available. Biomes were computed from Refs. [[1](#references), [4](#references) - [6](#references)].
 
-## cnidaria_M_seed.pkl
+## cnidaria_M_seed.pkl, cnidaria_Eg_seed.pkl, chordata_M_seed.pkl...
 
-`PICKLE` file retrieved from the `Seed` object in *carbondrift.simulation.seeding*, containing **initial conditions** and **biome IDs** for each grid cell for the carcasses (M) of the phylum Cnidaria.
+`PICKLE` file retrieved from the `Seed` object in *carbondrift.simulation.seeding*, containing **initial conditions** and **biome IDs** for each grid cell for the carcasses (M) and egestion (Eg) of different GZ phyla.
 
 ```console
         lon     lat            mass    z   origin_marker
@@ -87,7 +87,7 @@ Nan values represent grid cells, where no data was available. Biomes were comput
 36596   -16      83    3.649607e+09  -20               0
 ```
 
-## etopo2.nc, tmp_luo.nc
+## etopo2_remaped1deg.nc, tmp_luo_remaped1deg.nc
 
 `NETCDF` files containing **bathymetry** and **ocean temperature** fields, respectively. The datasets were obtained from Refs. [[4](#references), [7](#references)]. The files were remapped to a $1^\circ \times 1^\circ$ grid resolution using climate data operators [[8](#references)].
 

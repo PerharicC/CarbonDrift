@@ -98,7 +98,7 @@ class Plot:
                  prop1 = None, prop2 = None, colorbarlabel = None,
                  xlabel = None, ylabel = None, xlim = None, ylim = None, linewidth = 2,
                  legend = None, areagridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/area_grid.npy",
-                 biomegridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/biomegrid.npy", group = None,
+                 biomegridpath = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data/biome_grid.npy", group = None,
                  mhwintesitypath = None, dpi = 300):
         """
         Parameters

@@ -39,9 +39,9 @@
                 Setup readers, configures and initial conditions.
                 <pre><code class="language-python">
                     #Import readers
-                    btm = reader_netCDF_CF_generic.Reader("./supplementary_data/etopo2.nc",
+                    btm = reader_netCDF_CF_generic.Reader("./supplementary_data/etopo2_remaped1deg.nc",
                                                             standard_name_mapping={"topo":"depth"})
-                    tmp = reader_netCDF_CF_generic.Reader("./supplementary_data/tmp_luo.nc")
+                    tmp = reader_netCDF_CF_generic.Reader("./supplementary_data/tmp_luo_remaped1deg.nc")
                     lm = reader_global_landmask.Reader()
 
                     #Increase buffer, since vertical speeds are large!

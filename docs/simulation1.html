@@ -68,10 +68,10 @@
                     poctype = "M"
 
                     S = Seed(areapath = "./CarbonDrift/supplementary_data/area_grid.npy",
-                            bathymetrypath="./CarbonDrift/supplementary_data/etopo2.nc",
+                            bathymetrypath="./CarbonDrift/supplementary_data/etopo2_remaped1deg.nc",
                             outfile = f"{phylum}_{poctype}_seed.pkl", phylum = phylum,
                             initialmassdata="./CarbonDrift/supplementary_data/Luo_M_Eg_biome_data.json",
-                            biomegridpath="./CarbonDrift/supplementary_data/biomegrid.npy", poctype = poctype)
+                            biomegridpath="./CarbonDrift/supplementary_data/biome_grid.npy", poctype = poctype)
                 </code></pre>
             </p>
             </section>
@@ -89,9 +89,9 @@
                 The parameters can also be presaved to a .txt file. For example
                 <pre class ="txt">
                     -tmp
-                    ./supplementary_data/tmp_luo.nc
+                    ./supplementary_data/tmp_luo_remaped1deg.nc
                     -b
-                    ./supplementary_data/etopo2.nc
+                    ./supplementary_data/etopo2_remaped1deg.nc
                     -s
                     1993-01-01-0
                     -mdtype
