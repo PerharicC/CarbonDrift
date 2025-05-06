@@ -1,0 +1,26 @@
+mass_flux_map
+exp_variable/cnidaria_M.nc
+exp_variable/cnidaria_Eg.nc
+exp_variable/ctenophora_M.nc
+exp_variable/ctenophora_Eg.nc
+exp_variable/chordata_M.nc
+exp_variable/chordata_Eg.nc
+exp_constant/cnidaria_M.nc
+exp_constant/cnidaria_Eg.nc
+exp_constant/ctenophora_M.nc
+exp_constant/ctenophora_Eg.nc
+exp_constant/chordata_M.nc
+exp_constant/chordata_Eg.nc
+-fs
+12:8
+-cblabel
+$\Delta_{\mathrm{VSMD - CSMD}} \mathrm{[g\,C\,m^{-2}\,Y^{-1}]}$
+--shrink
+0.8
+-cmap
+Blues_r
+-add
+-diff
+-abs
+-fts
+30

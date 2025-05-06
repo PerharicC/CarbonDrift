@@ -5,7 +5,10 @@ __pycache__/
 *.txt
 *.pdf
 *.json
+*.nc
+examples/images
 
 !Luo_M_Eg_biome_data.json
-!/examples/sim_params.txt
+!/examples/recreate_global_GZ_carbon_simulations/*.txt
 !/docs/search.json
+!/supplementary_data/*
