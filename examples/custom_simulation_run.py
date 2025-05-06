@@ -3,13 +3,16 @@ from opendrift.readers import reader_netCDF_CF_generic
 from opendrift.readers import reader_global_landmask
 from datetime import datetime, timedelta
 from netCDF4 import Dataset
+import os
 
-from carbondrift.models.areadecay import carbondrift
+import carbondrift
+from carbondrift.models.areadecay import carbondrift as cdrift
 
 def run(outfile):
     #Import readers
-    btm = reader_netCDF_CF_generic.Reader("/home/peharicc/Documents/ncfiles/etopo2.nc", standard_name_mapping={"topo":"depth"})
-    tmp = reader_netCDF_CF_generic.Reader("/home/peharicc/Documents/ncfiles/tmp_luo.nc")
+    sup_dir = f"{os.path.dirname(os.path.dirname(carbondrift.__file__))}/supplementary_data"
+    btm = reader_netCDF_CF_generic.Reader(os.path.join(sup_dir, "etopo2_remaped1deg.nc"), standard_name_mapping={"topo":"depth"})
+    tmp = reader_netCDF_CF_generic.Reader(os.path.join(sup_dir, "tmp_luo_remaped1deg.nc"))
     lm = reader_global_landmask.Reader()
     #Increase buffer, since svertical speeds are large!
     tmp.verticalbuffer = 100
@@ -21,7 +24,7 @@ def run(outfile):
     #Initial mass array
     mass =  np.ones(2)
     #Initialize Carbon Drift object with area decay
-    o = carbondrift.CarbonDrift(loglevel = 0, initial_velocity = -0.009259, m0 = mass, decay_type = "linear")
+    o = cdrift.CarbonDrift(loglevel = 0, initial_velocity = -0.009259, m0 = mass, decay_type = "linear")
     #Deactivate horizontal advection and fragmentation
     o.deactivate_horizontal_advection()
     o.deactivate_fragmentation()
